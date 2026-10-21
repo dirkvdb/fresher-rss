@@ -1,20 +1,24 @@
 # Docker publishing
 
-[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) runs on **every push**, with a manual `workflow_dispatch` trigger. It tests and builds the project, builds the `standalone` companion for `linux/amd64` and `linux/arm64`, and publishes:
+[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) runs on **every push**, with a manual `workflow_dispatch` trigger. It tests and builds the project, then publishes both Docker targets for `linux/amd64` and `linux/arm64`:
 
-- `dirkvdb/fresher-rss:latest`
-- `dirkvdb/fresher-rss:sha-<full-commit-sha>`
+| Docker target | Published tags                                                                                  | Contents                                                             |
+| ------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `freshrss`    | `dirkvdb/fresher-rss:latest`, `dirkvdb/fresher-rss:sha-<full-commit-sha>`                       | FreshRSS with the frontend at `/reader/` and Node services           |
+| `standalone`  | `dirkvdb/fresher-rss-standalone:latest`, `dirkvdb/fresher-rss-standalone:sha-<full-commit-sha>` | Nginx, frontend, and Node services for an existing FreshRSS instance |
 
-A newer push cancels an older publishing run, keeping `latest` on the latest pushed revision.
+A newer push cancels an older publishing run, keeping both `latest` tags on the latest pushed revision. The targets have separate Buildx cache scopes and share the builder's common layers.
 
 ## Repository Actions secrets
 
-| Secret               | Purpose                                                                          |
-| -------------------- | -------------------------------------------------------------------------------- |
-| `DOCKERHUB_TOKEN`    | Required Docker Hub access token with push permission for `dirkvdb/fresher-rss`. |
-| `DOCKERHUB_USERNAME` | Optional login account; defaults to `dirkvdb`.                                   |
+| Secret               | Purpose                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| `DOCKERHUB_TOKEN`    | Required Docker Hub access token with push permission for both image repositories. |
+| `DOCKERHUB_USERNAME` | Optional login account; defaults to `dirkvdb`.                                     |
 
-The Docker Hub repository must exist, or the token must permit creating it. Supply FreshRSS credentials when starting the container; they are not build arguments or workflow secrets. [Runtime configuration](configuration.md).
+Both Docker Hub repositories must exist, or the token must permit creating them. Supply FreshRSS credentials when starting the container; they are not build arguments or workflow secrets. [Runtime configuration](configuration.md).
+
+The former companion tag `dirkvdb/fresher-rss:latest` now contains the combined FreshRSS image. Existing companion deployments should use `dirkvdb/fresher-rss-standalone:latest`; the supplied Compose file already selects it.
 
 ## CI maintenance
 

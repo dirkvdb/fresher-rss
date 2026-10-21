@@ -26,16 +26,16 @@ Tokens remain on Node, never appear in browser configuration, and are never forw
 
 ## Companion container
 
-**`dirkvdb/fresher-rss:latest`** supports `linux/amd64` and `linux/arm64`. The `standalone` Docker target combines Nginx, a loopback-only Node service, and a fixed-upstream FreshRSS API proxy. Browser requests stay same-origin; FreshRSS can remain internal to the Docker network. This image contains no PHP runtime.
+**`dirkvdb/fresher-rss-standalone:latest`** supports `linux/amd64` and `linux/arm64`. The `standalone` Docker target combines Nginx, a loopback-only Node service, and a fixed-upstream FreshRSS API proxy. Browser requests stay same-origin; FreshRSS can remain internal to the Docker network. This image contains no PHP runtime.
 
 ```sh
-docker run -d --name fresher-rss --network freshrss_default \
+docker run -d --name fresher-rss-standalone --network freshrss_default \
   -p 8081:80 \
   -e FRESHRSS_URL=http://freshrss \
   -e FRESHRSS_REFRESH_TOKENS='{"dirk":"your-master-authentication-token"}' \
   -e FRESHER_DEFAULT_PALETTE=ocean \
   -e FRESHER_DEFAULT_MODE=dark \
-  --restart unless-stopped dirkvdb/fresher-rss:latest
+  --restart unless-stopped dirkvdb/fresher-rss-standalone:latest
 ```
 
 Open **http://localhost:8081**. The configured upstream removes the instance-URL field from login; enter only username and API password. Your existing reverse proxy can serve the port over HTTPS.
@@ -76,20 +76,20 @@ This assumes the FreshRSS service is `freshrss` and both services use the projec
 
 ## Combined FreshRSS image
 
-The `freshrss` target embeds Fresher and Node in the official **Debian-based** FreshRSS image:
+**`dirkvdb/fresher-rss:latest`** supports `linux/amd64` and `linux/arm64`. Its `freshrss` target embeds Fresher and Node in the official **Debian-based** FreshRSS image. Build it locally if needed:
 
 ```sh
 just image-freshrss
 ```
 
-Set your existing service's image to `freshrss-with-fresher:latest`, retaining its data volumes and environment. Visit **https://your-freshrss-host/reader/**. Apache proxies `/reader/api/` to loopback Node; no extra port is exposed.
+Set your existing service's image to `dirkvdb/fresher-rss:latest` (or locally built `fresher-rss:latest`), retaining its data volumes and environment. Visit **https://your-freshrss-host/reader/**. Apache proxies `/reader/api/` to loopback Node; no extra port is exposed. For a fresh installation, complete the normal FreshRSS setup at the site's root first.
 
 To use a specific version of the official base image:
 
 ```sh
 docker build --target freshrss \
   --build-arg FRESHRSS_IMAGE=freshrss/freshrss:YOUR_CURRENT_TAG \
-  -t freshrss-with-fresher .
+  -t fresher-rss .
 ```
 
 ## Mount the frontend in an existing container

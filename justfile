@@ -24,11 +24,11 @@ test-browser:
 
 # Build the companion web container.
 image:
-    docker build --target standalone -t fresher-rss .
+    docker build --target standalone -t fresher-rss-standalone .
 
 # Build FreshRSS with the alternative interface at /reader/.
 image-freshrss:
-    docker build --target freshrss -t freshrss-with-fresher .
+    docker build --target freshrss -t fresher-rss .
 
 # Run the companion on the existing FreshRSS Docker network.
 up:

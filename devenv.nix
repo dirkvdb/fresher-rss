@@ -25,8 +25,8 @@
     build.exec = "npm run build";
     images.exec = "npm run start:images";
     check.exec = "npm test && npm run test:browser && npm run build";
-    image.exec = "docker build --target standalone -t fresher-rss .";
-    image-freshrss.exec = "docker build --target freshrss -t freshrss-with-fresher .";
+    image.exec = "docker build --target standalone -t fresher-rss-standalone .";
+    image-freshrss.exec = "docker build --target freshrss -t fresher-rss .";
   };
 
   processes.web.exec = "npm run dev";

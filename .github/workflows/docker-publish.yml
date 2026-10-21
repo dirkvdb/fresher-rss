@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Publish Docker images
 
 on:
   push:
@@ -55,7 +55,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME || 'dirkvdb' }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and publish
+      - name: Build and publish combined image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: freshrss
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=freshrss
+          cache-to: type=gha,scope=freshrss,mode=max
+
+      - name: Build and publish standalone image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -63,7 +76,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ env.IMAGE_NAME }}-standalone:latest
+            ${{ env.IMAGE_NAME }}-standalone:sha-${{ github.sha }}
+          cache-from: type=gha,scope=standalone
+          cache-to: type=gha,scope=standalone,mode=max

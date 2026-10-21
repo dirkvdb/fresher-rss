@@ -1,6 +1,6 @@
 services:
   fresher:
-    image: dirkvdb/fresher-rss:latest
+    image: dirkvdb/fresher-rss-standalone:latest
     build:
       context: .
       target: standalone
