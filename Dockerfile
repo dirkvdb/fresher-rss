@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 ARG FRESHRSS_IMAGE=freshrss/freshrss:latest
 FROM node:22-alpine AS build
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false NPM_CONFIG_FUND=false
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
