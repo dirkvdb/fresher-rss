@@ -409,7 +409,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: 12px;
+  flex-shrink: 0;
   white-space: nowrap;
 }
 .sidebar-tools {
@@ -1442,7 +1442,7 @@ kbd {
 }
 @media (max-width: 700px) {
   .reader-sync {
-    margin-left: 5px;
+    margin-left: 0;
     gap: 4px;
     font-size: 9px;
   }

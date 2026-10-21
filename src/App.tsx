@@ -1109,6 +1109,33 @@ function Reader({
             <span>
               {selected ? plainText(selected.origin.title) : "Articles"}
             </span>
+            <span
+              className="reader-sync"
+              title={
+                lastSync
+                  ? `Last synced: ${lastSync.toLocaleString()}`
+                  : "Sync status"
+              }
+            >
+              <span className="status-dot" />
+              {serverRefreshing ? (
+                "Refreshing articles…"
+              ) : isDemo ? (
+                "Demo mode"
+              ) : lastSync ? (
+                <span>
+                  <span className="reader-sync-prefix">Synced at </span>
+                  <time dateTime={lastSync.toISOString()}>
+                    {lastSync.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                </span>
+              ) : (
+                "Connecting…"
+              )}
+            </span>
           </div>
           <div className="reader-actions">
             {selected && (
@@ -1190,33 +1217,6 @@ function Reader({
                 </a>
               </>
             )}
-            <span
-              className="reader-sync"
-              title={
-                lastSync
-                  ? `Last synced: ${lastSync.toLocaleString()}`
-                  : "Sync status"
-              }
-            >
-              <span className="status-dot" />
-              {serverRefreshing ? (
-                "Refreshing articles…"
-              ) : isDemo ? (
-                "Demo mode"
-              ) : lastSync ? (
-                <span>
-                  <span className="reader-sync-prefix">Synced at </span>
-                  <time dateTime={lastSync.toISOString()}>
-                    {lastSync.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </time>
-                </span>
-              ) : (
-                "Connecting…"
-              )}
-            </span>
           </div>
         </header>
         <div className="reader-scroll" ref={articleScroll}>
