@@ -1,0 +1,64 @@
+map $request_uri $freshrss_path {
+    ~^/freshrss-api(/.*)$ $1;
+    default /;
+}
+
+server {
+    listen ${NGINX_PORT};
+    server_name ${NGINX_SERVER_NAME};
+    root /usr/share/nginx/html;
+    index index.html;
+    resolver ${DNS_RESOLVER} valid=${DNS_RESOLVER_TTL_SECONDS}s ipv6=${DNS_IPV6};
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+    add_header X-Frame-Options SAMEORIGIN always;
+
+    location ^~ /freshrss-api/ {
+        # Preserve percent-encoded folder names instead of normalizing the URI.
+        proxy_pass "${FRESHRSS_URL}/${FRESHRSS_API_PATH}$freshrss_path";
+        proxy_http_version 1.1;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header Cookie "";
+        proxy_hide_header Set-Cookie;
+        proxy_ssl_server_name on;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate ${TLS_CA_FILE};
+        proxy_read_timeout ${API_PROXY_TIMEOUT_SECONDS}s;
+        proxy_buffering off;
+        add_header Cache-Control "no-store" always;
+    }
+
+    location ~* \.(?:js|css|svg)$ {
+        try_files $uri =404;
+        expires ${STATIC_CACHE_SECONDS}s;
+    }
+
+    location = /config.js {
+        add_header Cache-Control "no-store" always;
+    }
+
+    location = /api/article-image {
+        proxy_pass ${SERVER_UPSTREAM};
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_read_timeout ${IMAGE_PROXY_TIMEOUT_SECONDS}s;
+    }
+
+    location = /api/refresh {
+        proxy_pass ${SERVER_UPSTREAM};
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization $http_authorization;
+        proxy_read_timeout ${REFRESH_PROXY_TIMEOUT_SECONDS}s;
+    }
+
+    location ~ \.php(?:/|$) {
+        return 404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache" always;
+    }
+}

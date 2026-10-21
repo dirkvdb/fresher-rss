@@ -1,0 +1,20 @@
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
+
+# Application
+node_modules/
+dist/
+dist-server/
+*.tsbuildinfo
+.env*
+!.env.example
+playwright-report/
+test-results/

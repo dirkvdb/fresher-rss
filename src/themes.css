@@ -1,0 +1,193 @@
+/* Palette tokens are shared by the app and the miniature live previews. */
+[data-palette="forest"][data-theme="light"] {
+  --bg: #fdfdfb;
+  --sidebar: #f5f5f1;
+  --surface: #ffffff;
+  --muted-bg: #f3f3ef;
+  --text: #292d29;
+  --muted: #858981;
+  --secondary: #666d63;
+  --border: #e6e7e0;
+  --green: #37634a;
+  --green-hover: #294d39;
+  --green-soft: #e7eee5;
+  --green-text: #365b40;
+  --selected: #f0f4ed;
+  --prose: #43483f;
+}
+[data-palette="forest"][data-theme="dark"] {
+  --bg: #191c1a;
+  --sidebar: #151815;
+  --surface: #1e221f;
+  --muted-bg: #262b26;
+  --text: #e0e5dd;
+  --muted: #899286;
+  --secondary: #a9b2a4;
+  --border: #30372f;
+  --green: #a5c7a7;
+  --green-hover: #bbd9bd;
+  --green-soft: #2a3a2c;
+  --green-text: #b4d1b3;
+  --selected: #253026;
+  --prose: #c7cec1;
+}
+[data-palette="stone"][data-theme="light"] {
+  --bg: #fafafa;
+  --sidebar: #f2f2f2;
+  --surface: #ffffff;
+  --muted-bg: #ededed;
+  --text: #252525;
+  --muted: #7b7b7b;
+  --secondary: #626262;
+  --border: #e1e1e1;
+  --green: #404040;
+  --green-hover: #262626;
+  --green-soft: #e6e6e6;
+  --green-text: #333333;
+  --selected: #eeeeee;
+  --prose: #414141;
+}
+[data-palette="stone"][data-theme="dark"] {
+  --bg: #171717;
+  --sidebar: #121212;
+  --surface: #1e1e1e;
+  --muted-bg: #272727;
+  --text: #e8e8e8;
+  --muted: #929292;
+  --secondary: #b1b1b1;
+  --border: #333333;
+  --green: #d4d4d4;
+  --green-hover: #eeeeee;
+  --green-soft: #333333;
+  --green-text: #e0e0e0;
+  --selected: #2b2b2b;
+  --prose: #cccccc;
+}
+[data-palette="sepia"][data-theme="light"] {
+  --bg: #faf5eb;
+  --sidebar: #f1e9db;
+  --surface: #fffcf5;
+  --muted-bg: #eee4d4;
+  --text: #42372c;
+  --muted: #8a7964;
+  --secondary: #77634e;
+  --border: #e4d7c3;
+  --green: #91602d;
+  --green-hover: #75491f;
+  --green-soft: #ecddc5;
+  --green-text: #795124;
+  --selected: #f1e6d4;
+  --prose: #574838;
+}
+[data-palette="sepia"][data-theme="dark"] {
+  --bg: #221d17;
+  --sidebar: #1b1712;
+  --surface: #2a231b;
+  --muted-bg: #342a20;
+  --text: #eadfce;
+  --muted: #ac967c;
+  --secondary: #c2ad92;
+  --border: #45382a;
+  --green: #d3aa72;
+  --green-hover: #e8c692;
+  --green-soft: #44321e;
+  --green-text: #dfbc88;
+  --selected: #382b1c;
+  --prose: #d3c4ae;
+}
+[data-palette="ocean"][data-theme="light"] {
+  --bg: #f8fafc;
+  --sidebar: #eef3f7;
+  --surface: #ffffff;
+  --muted-bg: #eaf0f5;
+  --text: #243747;
+  --muted: #798c9b;
+  --secondary: #5c7488;
+  --border: #dce5ed;
+  --green: #2b6b93;
+  --green-hover: #205477;
+  --green-soft: #dcebf5;
+  --green-text: #245d83;
+  --selected: #e8f1f8;
+  --prose: #40576b;
+}
+[data-palette="ocean"][data-theme="dark"] {
+  --bg: #151e28;
+  --sidebar: #101820;
+  --surface: #1b2733;
+  --muted-bg: #223141;
+  --text: #dde8f2;
+  --muted: #849aaf;
+  --secondary: #a3b8cb;
+  --border: #304256;
+  --green: #8fbfe0;
+  --green-hover: #b2d5ef;
+  --green-soft: #233e55;
+  --green-text: #a8d0ec;
+  --selected: #203348;
+  --prose: #c1d0df;
+}
+[data-palette="rose"][data-theme="light"] {
+  --bg: #fdf9fa;
+  --sidebar: #f6eef0;
+  --surface: #ffffff;
+  --muted-bg: #f2e8eb;
+  --text: #433037;
+  --muted: #997e88;
+  --secondary: #846572;
+  --border: #ecdde3;
+  --green: #a35270;
+  --green-hover: #883f5b;
+  --green-soft: #f3dfe7;
+  --green-text: #914561;
+  --selected: #f8eaf0;
+  --prose: #644a55;
+}
+[data-palette="rose"][data-theme="dark"] {
+  --bg: #241b20;
+  --sidebar: #1b1519;
+  --surface: #2d2229;
+  --muted-bg: #392a32;
+  --text: #efdee5;
+  --muted: #ac8b9a;
+  --secondary: #c4a6b3;
+  --border: #49343f;
+  --green: #dba0b6;
+  --green-hover: #ecc0d0;
+  --green-soft: #4c2b3a;
+  --green-text: #e7b4c6;
+  --selected: #3e2733;
+  --prose: #d8bfca;
+}
+[data-palette="lavender"][data-theme="light"] {
+  --bg: #faf9fd;
+  --sidebar: #f0eef7;
+  --surface: #ffffff;
+  --muted-bg: #ece9f4;
+  --text: #353044;
+  --muted: #8a819e;
+  --secondary: #74688a;
+  --border: #e3deee;
+  --green: #7860a5;
+  --green-hover: #604889;
+  --green-soft: #e9e0f5;
+  --green-text: #6c5198;
+  --selected: #f0eaf9;
+  --prose: #564c68;
+}
+[data-palette="lavender"][data-theme="dark"] {
+  --bg: #1e1b27;
+  --sidebar: #17141f;
+  --surface: #272230;
+  --muted-bg: #312a3d;
+  --text: #e7dff2;
+  --muted: #a091b5;
+  --secondary: #baaccf;
+  --border: #40354f;
+  --green: #bba4e0;
+  --green-hover: #d4c1f2;
+  --green-soft: #3d2e53;
+  --green-text: #cfb9ec;
+  --selected: #322740;
+  --prose: #cfc2df;
+}

@@ -1,0 +1,24 @@
+services:
+  fresher:
+    image: dirkvdb/fresher-rss:latest
+    build:
+      context: .
+      target: standalone
+    ports:
+      - "${FRESHER_BIND_ADDRESS:-0.0.0.0}:${FRESHER_PORT:-8081}:${NGINX_PORT:-80}"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Use a URL reachable from this container. No trailing slash.
+      FRESHRSS_URL: ${FRESHRSS_URL:-http://freshrss}
+      FRESHRSS_REFRESH_TOKENS: ${FRESHRSS_REFRESH_TOKENS:-}
+      NGINX_PORT: ${NGINX_PORT:-80}
+    restart: unless-stopped
+    networks:
+      - freshrss
+
+networks:
+  freshrss:
+    external: true
+    name: ${FRESHRSS_NETWORK:-freshrss_default}

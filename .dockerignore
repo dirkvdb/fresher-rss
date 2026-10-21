@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-server
+.devenv
+.direnv
+.git
+.env*
+!.env.example
+test-results
+playwright-report

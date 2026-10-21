@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fafaf9" />
+    <meta name="description" content="A reading interface for FreshRSS." />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>Fresher RSS</title>
+    <script src="/config.js"></script>
+    <script>
+      let mode = window.FRESHER_CONFIG?.defaultMode || 'system', palette = window.FRESHER_CONFIG?.defaultPalette || 'forest';
+      try {
+        const storedMode = localStorage.getItem('fresher-theme');
+        if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'system') mode = storedMode;
+        palette = localStorage.getItem('fresher-palette') || palette;
+      } catch (_) {}
+      document.documentElement.dataset.theme = mode === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : mode;
+      document.documentElement.dataset.palette = palette;
+    </script>
+  </head>
+  <body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
+</html>
