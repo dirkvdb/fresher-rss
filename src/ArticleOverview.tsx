@@ -22,6 +22,8 @@ interface OverviewProps {
   feeds: Feed[];
   stream: string;
   reload: number;
+  marking: boolean;
+  onMarkRead: (articles: Article[]) => Promise<void>;
   onOpen: (article: Article) => void;
   onShowAll: () => void;
   onError: (error: unknown) => void;
@@ -122,6 +124,8 @@ export function ArticleOverview({
   feeds,
   stream,
   reload,
+  marking,
+  onMarkRead,
   onOpen,
   onShowAll,
   onError,
@@ -132,6 +136,8 @@ export function ArticleOverview({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [markError, setMarkError] = useState("");
+  const [showRecent, setShowRecent] = useState(true);
   const generation = useRef(0);
   const errorHandler = useRef(onError);
   errorHandler.current = onError;
@@ -142,6 +148,7 @@ export function ArticleOverview({
     setLoading(true);
     setLoadingMore(false);
     setError("");
+    setMarkError("");
     setItems([]);
     setContinuation(undefined);
     if (isDemo) {
@@ -184,7 +191,7 @@ export function ArticleOverview({
   }, [api, isDemo, demoArticles, stream, reload, attempt]);
 
   async function loadMore() {
-    if (!continuation || loadingMore) return;
+    if (!continuation || loadingMore || marking) return;
     const request = generation.current;
     setLoadingMore(true);
     setError("");
@@ -211,6 +218,26 @@ export function ArticleOverview({
     }
   }
 
+  async function markVisibleRead() {
+    if (marking || loading || loadingMore || !items.length) return;
+    const request = generation.current;
+    setMarkError("");
+    try {
+      await onMarkRead(items);
+      // Once processing batches, keep read tiles out of the overview even when caught up.
+      setShowRecent(false);
+    } catch (e) {
+      if (request === generation.current) {
+        setMarkError(
+          e instanceof Error
+            ? e.message
+            : "Could not mark these articles as read.",
+        );
+        errorHandler.current(e);
+      }
+    }
+  }
+
   const busy = loading || (!items.length && listLoading);
   const caughtUp = !busy && !items.length && !error;
   const feedMap = useMemo(
@@ -218,9 +245,9 @@ export function ArticleOverview({
     [feeds],
   );
   const groups = useMemo(() => {
-    const articles = [...(items.length ? items : recentArticles)].sort(
-      (a, b) => b.published - a.published,
-    );
+    const articles = [
+      ...(items.length ? items : showRecent ? recentArticles : []),
+    ].sort((a, b) => b.published - a.published);
     const result = new Map<string, { label: string; articles: Article[] }>();
     for (const article of articles) {
       const category = feedMap.get(article.origin.streamId)?.categories?.[0];
@@ -233,14 +260,34 @@ export function ArticleOverview({
       result.get(id)!.articles.push(article);
     }
     return [...result.entries()];
-  }, [items, recentArticles, feedMap]);
+  }, [items, recentArticles, feedMap, showRecent]);
 
   return (
     <section
       className="article-overview"
       aria-label="Article overview"
-      aria-busy={busy}
+      aria-busy={busy || marking}
     >
+      <div className="overview-actions">
+        <button
+          className="button"
+          disabled={busy || marking || loadingMore || !items.length}
+          onClick={markVisibleRead}
+          title="Mark the displayed tiles as read and load the next unread batch"
+        >
+          {marking ? (
+            <LoaderCircle size={15} className="spin" />
+          ) : (
+            <CheckCheck size={15} />
+          )}
+          {marking ? "Marking as read…" : "Mark as read"}
+        </button>
+      </div>
+      {markError && (
+        <div className="overview-error" role="alert">
+          <p>{markError}</p>
+        </div>
+      )}
       {caughtUp && groups.length > 0 && (
         <p className="overview-status">
           <CheckCheck size={14} /> No unread articles. Showing recent articles.
@@ -267,7 +314,7 @@ export function ArticleOverview({
               <p>{error}</p>
               <button
                 className="button"
-                disabled={loadingMore}
+                disabled={loadingMore || marking}
                 onClick={() =>
                   items.length ? void loadMore() : setAttempt((v) => v + 1)
                 }
@@ -309,9 +356,19 @@ export function ArticleOverview({
               <span className="empty-icon">
                 <BookOpen size={26} />
               </span>
-              <h2>No articles</h2>
-              <p>Refresh your feeds or select another view.</p>
-              <button className="button" onClick={onShowAll}>
+              <h2>{showRecent ? "No articles" : "No unread articles"}</h2>
+              <p>
+                {showRecent
+                  ? "Refresh your feeds or select another view."
+                  : "You’re all caught up. Refresh your feeds or browse all articles."}
+              </p>
+              <button
+                className="button"
+                onClick={() => {
+                  setShowRecent(true);
+                  onShowAll();
+                }}
+              >
                 Browse all articles <ArrowRight size={14} />
               </button>
             </div>
@@ -320,7 +377,7 @@ export function ArticleOverview({
             <div className="overview-more">
               <button
                 className="button"
-                disabled={loadingMore}
+                disabled={loadingMore || marking}
                 onClick={loadMore}
               >
                 {loadingMore ? (

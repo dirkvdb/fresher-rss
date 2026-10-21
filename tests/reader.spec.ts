@@ -9,7 +9,7 @@ test("demo supports reading, stars, appearance, themes, search, and focus", asyn
   await page.goto("/");
   await page.getByRole("button", { name: "Explore the demo" }).click();
   await expect(
-    page.getByRole("heading", { name: "All articles", exact: true }),
+    page.getByRole("heading", { name: "Unread", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".overview-card")).toHaveCount(9);
   await page
@@ -202,6 +202,7 @@ test("API login, pagination, and mutations use FreshRSS endpoints", async ({
   });
   expect(dimensions.rendered).toBeCloseTo(dimensions.original, 2);
   expect(requests.filter((r) => r.path.endsWith("edit-tag"))).toHaveLength(0);
+  await page.getByRole("button", { name: /^All articles/ }).click();
   await page.getByRole("button", { name: "Load more articles" }).click();
   await expect(page.locator(".article-card")).toHaveCount(2);
   await page
@@ -240,6 +241,183 @@ test("API login, pagination, and mutations use FreshRSS endpoints", async ({
     ),
   ).not.toContain("api-secret");
   expect(metadataRequests).toBe(1);
+});
+
+test("overview marks only displayed tiles read and loads the next unread batch", async ({
+  page,
+}) => {
+  const read = "user/-/state/com.google/read";
+  const stories = Array.from({ length: 5 }, (_, index) => ({
+    id: `story-${index}`,
+    title: `Batch story ${index}`,
+    published: 1750000000 - index,
+    categories: [] as string[],
+    origin: { streamId: "feed/1", title: "Test feed" },
+    summary: { content: "<p>A batch article.</p>" },
+  }));
+  const batches: string[][] = [];
+  let failNextWrite = true;
+  let releaseWrite: () => void;
+  const writeGate = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  await page.route("**/config.js", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: "window.FRESHER_CONFIG = { pageSize: 2 };",
+    }),
+  );
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      "fresher-session",
+      JSON.stringify({
+        apiUrl: "https://fixture.invalid/api/greader.php",
+        username: "reader",
+        token: "reader/token",
+      }),
+    );
+  });
+  await page.route("https://fixture.invalid/**", async (route) => {
+    const url = new URL(route.request().url());
+    let body: unknown;
+    if (url.pathname.endsWith("/subscription/list")) {
+      body = {
+        subscriptions: [{ id: "feed/1", title: "Test feed", categories: [] }],
+      };
+    } else if (url.pathname.endsWith("/unread-count")) {
+      const count = stories.filter(
+        (story) => !story.categories.includes(read),
+      ).length;
+      body = {
+        unreadcounts: [
+          { id: "user/-/state/com.google/reading-list", count },
+          { id: "feed/1", count },
+        ],
+      };
+    } else if (url.pathname.endsWith("/token")) {
+      body = "write-token";
+    } else if (url.pathname.endsWith("/edit-tag")) {
+      const params = new URLSearchParams(route.request().postData() ?? "");
+      expect(params.get("a")).toBe(read);
+      expect(params.get("T")).toBe("write-token");
+      const ids = params.getAll("i");
+      batches.push(ids);
+      if (failNextWrite) {
+        failNextWrite = false;
+        await route.fulfill({
+          status: 500,
+          body: "Could not save this batch.",
+        });
+        return;
+      }
+      await writeGate;
+      for (const story of stories)
+        if (ids.includes(story.id)) story.categories.push(read);
+      body = "OK";
+    } else {
+      expect(url.pathname).toContain("/stream/contents/");
+      const available = stories.filter(
+        (story) =>
+          !url.searchParams.has("xt") || !story.categories.includes(read),
+      );
+      const start = Number(url.searchParams.get("c") ?? 0);
+      const size = Number(url.searchParams.get("n"));
+      body = {
+        items: available.slice(start, start + size),
+        ...(start + size < available.length
+          ? { continuation: String(start + size) }
+          : {}),
+      };
+    }
+    await route.fulfill({
+      contentType: typeof body === "string" ? "text/plain" : "application/json",
+      body: typeof body === "string" ? body : JSON.stringify(body),
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: /^All articles/ }).click();
+  const overview = page.getByRole("region", {
+    name: "Article overview",
+    exact: true,
+  });
+  const cards = overview.locator(".overview-card");
+  const markRead = overview.getByRole("button", {
+    name: "Mark as read",
+    exact: true,
+  });
+  await expect(cards).toHaveCount(2);
+  await markRead.click();
+  await expect(overview.getByRole("alert")).toBeVisible();
+  await expect(cards).toHaveCount(2);
+  expect(stories.every((story) => !story.categories.includes(read))).toBe(true);
+
+  await markRead.click();
+  await expect(
+    overview.getByRole("button", { name: "Marking as read…", exact: true }),
+  ).toBeDisabled();
+  await expect(cards).toHaveCount(2);
+  releaseWrite!();
+  await expect(
+    overview.getByRole("button", { name: "Open Batch story 2", exact: true }),
+  ).toBeVisible();
+  await expect(cards).toHaveCount(2);
+  await expect(
+    overview.getByRole("button", { name: "Open Batch story 0", exact: true }),
+  ).toHaveCount(0);
+  expect(batches).toEqual([
+    ["story-0", "story-1"],
+    ["story-0", "story-1"],
+  ]);
+  expect(
+    stories.filter((story) => !story.categories.includes(read)),
+  ).toHaveLength(3);
+  await expect(page.locator(".list-subtitle")).toContainText("3 unread");
+
+  await overview
+    .getByRole("button", { name: "Load more articles", exact: true })
+    .click();
+  await expect(cards).toHaveCount(3);
+  await markRead.click();
+  await expect(cards).toHaveCount(0);
+  await expect(
+    overview.getByRole("heading", { name: "No unread articles", exact: true }),
+  ).toBeVisible();
+  await expect(markRead).toBeDisabled();
+  expect(batches[2]).toEqual(["story-2", "story-3", "story-4"]);
+  expect(stories.every((story) => story.categories.includes(read))).toBe(true);
+  await expect(page.locator(".list-subtitle")).toContainText("0 unread");
+  await overview
+    .getByRole("button", { name: "Browse all articles", exact: true })
+    .click();
+  await expect(cards).toHaveCount(2);
+  await expect(markRead).toBeDisabled();
+});
+
+test("demo overview batch reading respects the selected folder", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Explore the demo" }).click();
+  await page.getByRole("button", { name: /^Technology/ }).click();
+  const overview = page.getByRole("region", {
+    name: "Article overview",
+    exact: true,
+  });
+  await expect(overview.locator(".overview-card")).toHaveCount(3);
+  await overview
+    .getByRole("button", { name: "Mark as read", exact: true })
+    .click();
+  await expect(overview.locator(".overview-card")).toHaveCount(0);
+  await expect(
+    overview.getByRole("heading", { name: "No unread articles", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("complementary", { name: "Feed navigation" })
+    .getByRole("button", { name: /^Unread/ })
+    .click();
+  await expect(overview.locator(".overview-card")).toHaveCount(6);
+  await expect(page.locator(".list-subtitle")).toContainText("6 unread");
 });
 
 test("Node image service rejects local URLs and non-web schemes", async ({
@@ -392,6 +570,12 @@ test("overview refreshes unread cards and keeps recent stories after marking all
     .getByRole("button", { name: "Mark all read", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "No unread articles", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Show all articles", exact: true })
+    .click();
   await expect(
     page.getByText("No unread articles. Showing recent articles.", {
       exact: true,

@@ -190,7 +190,7 @@ export function readConfig(env = process.env) {
     defaultFont: choice("FRESHER_DEFAULT_FONT", "serif", ["serif", "sans"]),
     defaultFontSize: integer("FRESHER_DEFAULT_FONT_SIZE", 18, 14, 26),
     defaultSort: choice("FRESHER_DEFAULT_SORT", "newest", ["newest", "oldest"]),
-    defaultUnreadOnly: boolean("FRESHER_DEFAULT_UNREAD_ONLY", false),
+    defaultUnreadOnly: boolean("FRESHER_DEFAULT_UNREAD_ONLY", true),
     markReadOnOpen: boolean("FRESHER_MARK_READ_ON_OPEN", true),
     pageSize: integer("FRESHER_PAGE_SIZE", 50, 1, 1000),
     apiTimeoutMs: integer("FRESHER_API_TIMEOUT_MS", 30000),

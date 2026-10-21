@@ -37,7 +37,7 @@ export function runtimeConfig(): RuntimeConfig {
     defaultFont: "serif",
     defaultFontSize: 18,
     defaultSort: "newest",
-    defaultUnreadOnly: false,
+    defaultUnreadOnly: true,
     markReadOnOpen: true,
     pageSize: 50,
     apiTimeoutMs: 30000,

@@ -680,6 +680,37 @@ function Reader({
       setMarking(false);
     }
   }
+  async function markOverviewRead(batch: Article[]) {
+    if (marking) return;
+    const ids = new Set(
+      batch
+        .filter((article) => !article.categories.includes(READ))
+        .map((article) => article.id),
+    );
+    if (!ids.size) return;
+    setMarking(true);
+    try {
+      if (isDemo) {
+        setDemoArticles((prev) =>
+          prev.map((article) =>
+            ids.has(article.id)
+              ? {
+                  ...article,
+                  categories: [...new Set([...article.categories, READ])],
+                }
+              : article,
+          ),
+        );
+      } else {
+        await api.tag([...ids], READ, true);
+      }
+      // Restart at the first unread page: the old continuation can skip entries after a batch is read.
+      setReload((value) => value + 1);
+      articleScroll.current?.scrollTo({ top: 0 });
+    } finally {
+      setMarking(false);
+    }
+  }
   const body = useMemo(
     () => (selected ? articleHtml(selected) : ""),
     [selected],
@@ -1305,7 +1336,7 @@ function Reader({
             </article>
           ) : (
             <ArticleOverview
-              key={`${stream}:${reload}`}
+              key={stream}
               api={api}
               isDemo={isDemo}
               demoArticles={demoArticles}
@@ -1314,6 +1345,8 @@ function Reader({
               feeds={feeds}
               stream={stream}
               reload={reload}
+              marking={marking}
+              onMarkRead={markOverviewRead}
               onOpen={(article) => {
                 setQuery("");
                 selectArticle(article);

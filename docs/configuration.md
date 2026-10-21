@@ -42,7 +42,7 @@ The combined image also supports the environment options of its official FreshRS
 | `FRESHER_DEFAULT_FONT`              | `serif`                                         | `serif` or `sans`.                                                 |
 | `FRESHER_DEFAULT_FONT_SIZE`         | `18`                                            | Reading text size, 14–26 pixels.                                   |
 | `FRESHER_DEFAULT_SORT`              | `newest`                                        | `newest` or `oldest`.                                              |
-| `FRESHER_DEFAULT_UNREAD_ONLY`       | `false`                                         | Start in the unread view.                                          |
+| `FRESHER_DEFAULT_UNREAD_ONLY`       | `true`                                          | Start in the unread view.                                          |
 | `FRESHER_MARK_READ_ON_OPEN`         | `true`                                          | Mark an article read when it opens.                                |
 | `FRESHER_PAGE_SIZE`                 | `50`                                            | API page size, 1–1000 articles.                                    |
 | `FRESHER_API_TIMEOUT_MS`            | `30000`                                         | Browser FreshRSS API timeout.                                      |
