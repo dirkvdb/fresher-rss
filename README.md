@@ -43,4 +43,4 @@ All deployment settings are configurable through environment variables without r
 - **[Development](docs/development.md):** tools, commands, tests, builds, and architecture.
 - **[Publishing](docs/publishing.md):** GitHub Actions, Docker Hub secrets, platforms, tags, and publishing behavior.
 
-Every push tests/builds the project and publishes `latest` plus `sha-<commit>` for both images. Configure GitHub Actions secret **`DOCKERHUB_TOKEN`** with push access to both repositories; **`DOCKERHUB_USERNAME`** optionally overrides the default `dirkvdb`.
+Every push and a daily scheduled run test/build the project and publish `latest` plus `sha-<commit>` for both images. Builds pull current base images, automatically picking up updates to `freshrss/freshrss:latest`. Configure GitHub Actions secret **`DOCKERHUB_TOKEN`** with push access to both repositories; **`DOCKERHUB_USERNAME`** optionally overrides the default `dirkvdb`.

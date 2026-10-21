@@ -3,6 +3,9 @@ name: Publish Docker images
 on:
   push:
   workflow_dispatch:
+  schedule:
+    # Refresh upstream images daily, even when this repository has no new commits.
+    - cron: "23 5 * * *"
 
 permissions:
   contents: read
@@ -61,6 +64,7 @@ jobs:
           context: .
           target: freshrss
           platforms: linux/amd64,linux/arm64
+          pull: true
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest
@@ -74,6 +78,7 @@ jobs:
           context: .
           target: standalone
           platforms: linux/amd64,linux/arm64
+          pull: true
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}-standalone:latest

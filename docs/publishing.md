@@ -1,6 +1,6 @@
 # Docker publishing
 
-[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) runs on **every push**, with a manual `workflow_dispatch` trigger. It tests and builds the project, then publishes both Docker targets for `linux/amd64` and `linux/arm64`:
+[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) runs on **every push**, **daily at 05:23 UTC**, and via a manual `workflow_dispatch` trigger. It tests and builds the project, then publishes both Docker targets for `linux/amd64` and `linux/arm64`:
 
 | Docker target | Published tags                                                                                  | Contents                                                             |
 | ------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
@@ -8,6 +8,14 @@
 | `standalone`  | `dirkvdb/fresher-rss-standalone:latest`, `dirkvdb/fresher-rss-standalone:sha-<full-commit-sha>` | Nginx, frontend, and Node services for an existing FreshRSS instance |
 
 A newer push cancels an older publishing run, keeping both `latest` tags on the latest pushed revision. The targets have separate Buildx cache scopes and share the builder's common layers.
+
+## Automatic base image updates
+
+Every build explicitly pulls current base images. The daily run rebuilds the combined image from `freshrss/freshrss:latest`, picking up stable FreshRSS releases and updates to that upstream tag even without a Fresher source change. It also refreshes the standalone image's Nginx and Node.js bases. Builds run daily whether or not an upstream image has changed; existing build caches remain enabled.
+
+Scheduled runs use the repository's default branch and start once this workflow is on that branch. GitHub may delay scheduled runs and disables schedules in public repositories after 60 days without repository activity; re-enable the workflow if needed. No additional bot account or token is required beyond the Docker Hub secrets below.
+
+Both `latest` and `sha-<full-commit-sha>` are republished on each successful build. A SHA tag identifies the Fresher source revision, but its base images can change on a rebuild; pin an image digest when you need an immutable deployment. Existing containers receive updates when you pull the images and recreate them, for example with `docker compose pull && docker compose up -d`.
 
 ## Repository Actions secrets
 
