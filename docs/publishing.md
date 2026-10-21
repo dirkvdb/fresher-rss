@@ -18,4 +18,4 @@ The Docker Hub repository must exist, or the token must permit creating it. Supp
 
 ## CI maintenance
 
-Actions use supported Node.js 24 runtimes. Checkout supplies its initial branch through process-local Git configuration. QEMU installs only ARM64 emulation and leaves its redundant image cache disabled to avoid cache-write collisions; Buildx layer caching remains enabled. npm update/funding advertisements are disabled in automated builds, while warnings, deprecations, and audit findings remain visible.
+Actions use supported Node.js 24 runtimes on a pinned Ubuntu 24.04 runner. Checkout supplies its initial branch through process-local Git configuration. QEMU installs only ARM64 emulation and leaves its redundant image cache disabled to avoid cache-write collisions; Buildx layer caching remains enabled. npm update/funding advertisements are disabled in automated builds, while warnings, deprecations, and audit findings remain visible.
