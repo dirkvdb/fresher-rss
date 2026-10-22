@@ -46,6 +46,13 @@ server {
         proxy_read_timeout ${IMAGE_PROXY_TIMEOUT_SECONDS}s;
     }
 
+    location = /api/article-content {
+        proxy_pass ${SERVER_UPSTREAM};
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_read_timeout ${IMAGE_PROXY_TIMEOUT_SECONDS}s;
+    }
+
     location = /api/refresh {
         proxy_pass ${SERVER_UPSTREAM};
         proxy_set_header Cookie "";

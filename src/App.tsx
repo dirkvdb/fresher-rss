@@ -57,7 +57,6 @@ import { ThemePicker } from "./ThemePicker";
 import { useTheme } from "./themes";
 import { runtimeConfig } from "./runtime";
 
-
 function stored(key: string, fallback = "") {
   try {
     return localStorage.getItem(key) ?? fallback;
@@ -350,6 +349,17 @@ function Reader({
   );
   const [articles, setArticles] = useState<Article[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [original, setOriginal] = useState<
+    | ({
+        id: string;
+        url: string;
+      } & (
+        | { status: "loading" }
+        | { status: "ready"; content: string; sourceUrl: string }
+        | { status: "error"; error: string }
+      ))
+    | null
+  >(null);
   const [continuation, setContinuation] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -706,17 +716,96 @@ function Reader({
       setMarking(false);
     }
   }
-  const body = useMemo(
-    () => (selected ? articleHtml(selected) : ""),
-    [selected],
+  const articleUrl = safeUrl(selected?.alternate?.[0]?.href);
+  useEffect(() => {
+    if (!articleUrl || !selectedId) {
+      setOriginal(null);
+      return;
+    }
+    const controller = new AbortController();
+    setOriginal({ id: selectedId, url: articleUrl, status: "loading" });
+    const endpoint = new URL(runtimeConfig().contentApiUrl, document.baseURI);
+    endpoint.searchParams.set("url", articleUrl);
+    void (async () => {
+      try {
+        const response = await fetch(endpoint, {
+          credentials: "omit",
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(runtimeConfig().imageClientTimeoutMs),
+          ]),
+        });
+        if (!response.headers.get("content-type")?.includes("application/json"))
+          throw new Error("The article-content service is unavailable.");
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(
+            typeof data.error === "string"
+              ? data.error
+              : "Could not retrieve the original article.",
+          );
+        if (
+          typeof data.content !== "string" ||
+          !data.content.trim() ||
+          !safeUrl(data.url)
+        )
+          throw new Error(
+            "The publisher did not return readable article content.",
+          );
+        if (!controller.signal.aborted)
+          setOriginal({
+            id: selectedId,
+            url: articleUrl,
+            status: "ready",
+            content: data.content,
+            sourceUrl: data.url,
+          });
+      } catch (error) {
+        if (!controller.signal.aborted)
+          setOriginal({
+            id: selectedId,
+            url: articleUrl,
+            status: "error",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not retrieve the original article.",
+          });
+      }
+    })();
+    return () => controller.abort();
+  }, [articleUrl, selectedId]);
+  const currentOriginal =
+    original?.id === selectedId && original?.url === articleUrl
+      ? original
+      : null;
+  const originalLoading = Boolean(
+    selected &&
+    articleUrl &&
+    (!currentOriginal || currentOriginal.status === "loading"),
   );
-  const wordCount = selected
+  const originalError =
+    currentOriginal?.status === "error" ? currentOriginal.error : "";
+  const readerArticle = useMemo(() => {
+    if (!selected || originalLoading) return undefined;
+    if (currentOriginal?.status !== "ready") return selected;
+    return {
+      ...selected,
+      content: { content: currentOriginal.content },
+      alternate: [{ href: currentOriginal.sourceUrl }],
+    };
+  }, [selected, originalLoading, currentOriginal]);
+  const body = useMemo(
+    () => (readerArticle ? articleHtml(readerArticle) : ""),
+    [readerArticle],
+  );
+  const wordCount = readerArticle
     ? plainText(
-        selected.content?.content ?? selected.summary?.content ?? "",
+        readerArticle.content?.content ?? readerArticle.summary?.content ?? "",
       ).split(/\s+/).length
     : 0;
   const readMinutes = Math.max(1, Math.ceil(wordCount / 220));
-  const articleUrl = safeUrl(selected?.alternate?.[0]?.href);
   const totalUnread = counts[ALL] ?? 0;
 
   return (
@@ -1282,7 +1371,19 @@ function Reader({
                 </time>
               </div>
               <div className="article-rule" />
-              {body ? (
+              {originalLoading && (
+                <div className="original-reader-status" role="status">
+                  <LoaderCircle size={16} className="spin" /> Loading original
+                  article…
+                </div>
+              )}
+              {originalError && (
+                <div className="original-reader-status" role="alert">
+                  {originalError} Showing feed content instead. You can still
+                  open the original using the top-right external link.
+                </div>
+              )}
+              {originalLoading ? null : body ? (
                 <div
                   className="prose"
                   dangerouslySetInnerHTML={{ __html: body }}
@@ -1301,16 +1402,6 @@ function Reader({
                 <span />
               </div>
               <div className="article-end-actions">
-                {articleUrl && (
-                  <a
-                    className="button"
-                    href={articleUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Read on the original site <ExternalLink size={14} />
-                  </a>
-                )}
                 <button
                   className="text-button"
                   onClick={() =>

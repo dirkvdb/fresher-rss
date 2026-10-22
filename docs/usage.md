@@ -10,7 +10,17 @@
 - Forest, Stone, Sepia, Ocean, Rose, and Lavender each support light, dark, and system modes, with live previews and saved preferences.
 - Feed HTML is sanitized, outgoing links are isolated, and fonts are hosted locally.
 
-FreshRSS manages subscriptions, fetching, and administration. Article text comes from the feed; Fresher does not scrape full article bodies.
+FreshRSS manages subscriptions, feed fetching, and administration. The reader automatically fetches the original article; feed content is used as a fallback.
+
+### Reading the original article
+
+Opening an article automatically fetches its main content through the Node service and displays it in the same calm reader style, respecting your theme, font, and text size. A loading indicator is shown while fetching; RSS content appears only if extraction fails or the feed has no usable original URL. The top-right external link always opens the publisher's page in a new tab.
+
+The server uses Readability to extract article content, removes scripts and unsafe markup, and returns HTML that is sanitized again in the browser. Publisher scripts never run. Fetches use the same public-network restrictions and resource limits as image discovery, without forwarding cookies or FreshRSS credentials. Article images load directly from their publishers.
+
+For Tweakers, the server recognizes DPG's consent redirect and retries the article with the temporary functional `authId` supplied by that page. This cookie is sent only to `https://tweakers.net`, is never persisted or shared between requests, and does not use your browser cookies or accept advertising/tracking consent.
+
+Extraction requires the Node service and may still fail for other consent walls, paywalls, bot protection, or JavaScript-only pages. When it fails, feed content is shown with an explanation and the external link remains available.
 
 ## Authentication and storage
 

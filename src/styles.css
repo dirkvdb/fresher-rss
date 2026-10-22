@@ -708,6 +708,17 @@ kbd {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+
+.original-reader-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
 .article-content {
   max-width: 810px;
   margin: 0 auto;

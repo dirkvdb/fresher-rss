@@ -173,6 +173,7 @@ export function readConfig(env = process.env) {
     imageMaxHtmlBytes: config.imageMaxHtmlBytes,
     apiUrl: publicUrl("FRESHER_API_URL", ""),
     imageApiUrl: publicUrl("FRESHER_IMAGE_API_URL", "api/article-image"),
+    contentApiUrl: publicUrl("FRESHER_CONTENT_API_URL", "api/article-content"),
     refreshApiUrl: publicUrl("FRESHER_REFRESH_API_URL", "api/refresh"),
     defaultPalette: choice("FRESHER_DEFAULT_PALETTE", "forest", [
       "forest",

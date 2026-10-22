@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { startDemo } from "./demo";
 
-
 test("demo supports reading, stars, appearance, themes, search, and focus", async ({
   page,
 }) => {
@@ -216,6 +215,29 @@ test("API login, pagination, and mutations use FreshRSS endpoints", async ({
   await page.getByRole("button", { name: /^All articles/ }).click();
   await page.getByRole("button", { name: "Load more articles" }).click();
   await expect(page.locator(".article-card")).toHaveCount(2);
+  let contentRequests = 0;
+  let releaseContent!: () => void;
+  const contentReady = new Promise<void>((resolve) => {
+    releaseContent = resolve;
+  });
+  await page.route("**/api/article-content?*", async (route) => {
+    contentRequests++;
+    expect(new URL(route.request().url()).searchParams.get("url")).toBe(
+      article.alternate[0].href,
+    );
+    expect(route.request().headers().authorization).toBeUndefined();
+    await contentReady;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        content:
+          '<p>Full original article in a calm reader.</p><script>throw Error("unsafe")</script>',
+        title: "Publisher title",
+        byline: null,
+        url: article.alternate[0].href,
+      }),
+    });
+  });
   await page
     .getByRole("button", { name: "Open An actual API article", exact: true })
     .click();
@@ -223,7 +245,49 @@ test("API login, pagination, and mutations use FreshRSS endpoints", async ({
     "An actual API article",
   );
   await expect(page.locator(".article-card")).toHaveCount(3);
+  await expect(page.getByRole("status")).toContainText(
+    "Loading original article",
+  );
+  await expect(page.locator(".prose")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Read original", exact: true }),
+  ).toHaveCount(0);
+  releaseContent();
+  const externalLink = page.getByRole("link", {
+    name: "Open original article",
+    exact: true,
+  });
+  const articleUrl = await externalLink.getAttribute("href");
+  expect(articleUrl).toBeTruthy();
+  await expect(externalLink).toHaveAttribute("target", "_blank");
+  await expect(page.locator(".prose")).toHaveText(
+    "Full original article in a calm reader.",
+  );
+  await expect(page.locator(".prose script, iframe")).toHaveCount(0);
+  expect(contentRequests).toBe(1);
+  await expect(externalLink).toBeVisible();
+  await expect(externalLink).toHaveAttribute("target", "_blank");
+  expect(page.context().pages()).toHaveLength(1);
+
+  await page.route("**/api/article-content?*", (route) =>
+    route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Could not extract readable article content.",
+      }),
+    }),
+  );
+  await page.locator(".article-card").nth(1).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Showing feed content instead",
+  );
   await expect(page.locator(".prose")).toHaveText("Hello from FreshRSS.");
+  await expect(externalLink).toHaveAttribute("target", "_blank");
+  await expect(page.locator(".article-content")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Back to article", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Mark unread (M)", exact: true }),
   ).toBeEnabled();

@@ -36,6 +36,7 @@ The combined image also supports the environment options of its official FreshRS
 | ----------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
 | `FRESHER_API_URL`                   | `/freshrss-api` in companion; empty otherwise   | Public API endpoint. Empty shows the instance URL field at login.  |
 | `FRESHER_IMAGE_API_URL`             | `api/article-image`                             | Public image-service endpoint, resolved relative to the page.      |
+| `FRESHER_CONTENT_API_URL`           | `api/article-content`                           | Public original-article extraction endpoint, relative to the page. |
 | `FRESHER_REFRESH_API_URL`           | `api/refresh`                                   | Public article-refresh endpoint.                                   |
 | `FRESHER_DEFAULT_PALETTE`           | `forest`                                        | `forest`, `stone`, `sepia`, `ocean`, `rose`, or `lavender`.        |
 | `FRESHER_DEFAULT_MODE`              | `system`                                        | `light`, `dark`, or `system`.                                      |
@@ -76,6 +77,12 @@ Public endpoint overrides change what the browser requests. Configure your exter
 | `IMAGE_USER_AGENT`        | FresherRSS article-preview user agent | Publisher request user agent.                                                              |
 
 Private/reserved address rejection, DNS pinning, redirect validation, and credential isolation are always enforced.
+
+## Original article extraction
+
+`/api/article-content` shares the image service's network deadlines, HTML-size and URL bounds, allowed ports, redirect policy, user agent, cache settings, concurrency limit, and rate-limit settings listed above. Its cache, concurrency counter, and per-client rate-limit buckets are separate from image discovery. `FRESHER_IMAGE_CLIENT_TIMEOUT_MS` also bounds browser extraction requests. Extraction remains available when `IMAGE_ENABLED=false`.
+
+The endpoint fetches public pages without publisher credentials, extracts the main article, and returns sanitized HTML as JSON. It never executes publisher scripts or fetches page subresources during extraction. Private/reserved targets are rejected and redirect destinations are revalidated. The browser sanitizes the returned HTML again before displaying it.
 
 ## Article refresh
 

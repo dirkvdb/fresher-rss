@@ -27,9 +27,11 @@ export default defineConfig(({ mode }) => {
               return;
             }
             if (
-              ["/api/article-image", "/api/refresh"].includes(
-                request.url?.split("?")[0] ?? "",
-              )
+              [
+                "/api/article-image",
+                "/api/article-content",
+                "/api/refresh",
+              ].includes(request.url?.split("?")[0] ?? "")
             )
               void handler(request, response);
             else next();
@@ -48,9 +50,11 @@ export default defineConfig(({ mode }) => {
               return;
             }
             if (
-              ["/api/article-image", "/api/refresh"].includes(
-                request.url?.split("?")[0] ?? "",
-              )
+              [
+                "/api/article-image",
+                "/api/article-content",
+                "/api/refresh",
+              ].includes(request.url?.split("?")[0] ?? "")
             )
               void handler(request, response);
             else next();

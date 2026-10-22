@@ -102,7 +102,12 @@ export async function resolvePublicTarget(
   };
 }
 
-async function readResponse(target, signal, config = DEFAULT_CONFIG) {
+async function readResponse(
+  target,
+  signal,
+  config = DEFAULT_CONFIG,
+  publisherCookie,
+) {
   const response = await new Promise((resolve, reject) => {
     const request = (target.url.protocol === "https:" ? https : http).request(
       target.url,
@@ -114,6 +119,9 @@ async function readResponse(target, signal, config = DEFAULT_CONFIG) {
           "User-Agent": config.imageUserAgent,
           Accept: "text/html,application/xhtml+xml",
           "Accept-Encoding": "gzip, deflate, br",
+          ...(publisherCookie?.origin === target.url.origin
+            ? { Cookie: publisherCookie.value }
+            : {}),
         },
         // No second DNS lookup, including IPv4-mapped IPv6 and redirect destinations.
         lookup: (_hostname, options, callback) => {
@@ -190,13 +198,21 @@ export async function downloadPage(
     signal = AbortSignal.timeout(config.imageTimeoutMs),
     lookup = dnsLookup,
     requestPage = readResponse,
+    publisherCookie,
   } = {},
 ) {
   let url = input;
   for (let redirects = 0; redirects <= config.imageMaxRedirects; redirects++) {
     signal.throwIfAborted();
     const target = await resolvePublicTarget(url, { signal, lookup, config });
-    const response = await requestPage(target, signal, config);
+    const response = await requestPage(
+      target,
+      signal,
+      config,
+      publisherCookie?.origin === target.url.origin
+        ? publisherCookie
+        : undefined,
+    );
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const next =
         response.location &&
