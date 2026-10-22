@@ -114,7 +114,7 @@ test("API login, pagination, and mutations use FreshRSS endpoints", async ({
   await page.route("https://example.com/cover.jpg", (route) =>
     route.fulfill({
       contentType: "image/svg+xml",
-      body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300" fill="#658673"/></svg>',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 600"><rect width="300" height="600" fill="#658673"/></svg>',
     }),
   );
   await page.route("**/api/greader.php/**", async (route) => {
@@ -194,13 +194,22 @@ test("API login, pagination, and mutations use FreshRSS endpoints", async ({
   await photo.hover();
   const dimensions = await photo.evaluate((image) => {
     const img = image as HTMLImageElement;
-    const rect = img.getBoundingClientRect();
+    const media = img.parentElement!;
     return {
-      rendered: rect.width / rect.height,
-      original: img.naturalWidth / img.naturalHeight,
+      mediaRatio: media.offsetWidth / media.offsetHeight,
+      imageWidth: img.offsetWidth,
+      imageHeight: img.offsetHeight,
+      mediaWidth: media.clientWidth,
+      mediaHeight: media.clientHeight,
+      fit: getComputedStyle(img).objectFit,
+      overflow: getComputedStyle(media).overflow,
     };
   });
-  expect(dimensions.rendered).toBeCloseTo(dimensions.original, 2);
+  expect(dimensions.mediaRatio).toBeCloseTo(1.9, 1);
+  expect(dimensions.imageWidth).toBe(dimensions.mediaWidth);
+  expect(dimensions.imageHeight).toBe(dimensions.mediaHeight);
+  expect(dimensions.fit).toBe("contain");
+  expect(dimensions.overflow).toBe("hidden");
   expect(requests.filter((r) => r.path.endsWith("edit-tag"))).toHaveLength(0);
   await page.getByRole("button", { name: /^All articles/ }).click();
   await page.getByRole("button", { name: "Load more articles" }).click();

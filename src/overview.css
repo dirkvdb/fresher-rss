@@ -104,12 +104,11 @@
   background: var(--muted-bg);
   flex-shrink: 0;
 }
-.overview-card-media.has-image {
-  aspect-ratio: auto;
-}
 .overview-card-media > img {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
   object-fit: contain;
   transition: transform 0.35s;
