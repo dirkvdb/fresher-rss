@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { startDemo } from "./demo";
+
 
 test("demo supports reading, stars, appearance, themes, search, and focus", async ({
   page,
@@ -7,7 +9,7 @@ test("demo supports reading, stars, appearance, themes, search, and focus", asyn
   page.on("pageerror", (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore the demo" }).click();
+  await startDemo(page);
   await expect(
     page.getByRole("heading", { name: "Unread", exact: true }),
   ).toBeVisible();
@@ -57,7 +59,7 @@ test("mobile reader has working navigation and no horizontal overflow", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore the demo" }).click();
+  await startDemo(page);
   await page.getByRole("button", { name: "Show article overview" }).click();
   await expect(
     page.getByRole("region", { name: "Article overview", exact: true }),
@@ -407,7 +409,7 @@ test("demo overview batch reading respects the selected folder", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore the demo" }).click();
+  await startDemo(page);
   await page.getByRole("button", { name: /^Technology/ }).click();
   const overview = page.getByRole("region", {
     name: "Article overview",
@@ -562,7 +564,7 @@ test("overview refreshes unread cards and keeps recent stories after marking all
 }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore the demo" }).click();
+  await startDemo(page);
   await expect(page.locator(".overview-card")).toHaveCount(9);
   await page.locator(".overview-card").first().click();
   await page

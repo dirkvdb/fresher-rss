@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { startDemo } from "./demo";
 
 test("all palettes support light/dark, persist, and apply to the reader", async ({
   page,
@@ -43,7 +44,7 @@ test("all palettes support light/dark, persist, and apply to the reader", async 
     "lavender",
   );
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Explore the demo" }).click();
+  await startDemo(page);
   await expect(page.locator(".article-overview")).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Theme: Lavender, dark/ }),

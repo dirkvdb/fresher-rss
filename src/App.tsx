@@ -57,7 +57,7 @@ import { ThemePicker } from "./ThemePicker";
 import { useTheme } from "./themes";
 import { runtimeConfig } from "./runtime";
 
-const DEMO: Session = { apiUrl: "demo", username: "Alex", token: "" };
+
 function stored(key: string, fallback = "") {
   try {
     return localStorage.getItem(key) ?? fallback;
@@ -277,12 +277,7 @@ function Login({
               {busy ? "Connecting…" : "Connect to FreshRSS"}
             </button>
           </form>
-          <div className="login-divider">
-            <span>or</span>
-          </div>
-          <button className="button demo-button" onClick={() => onLogin(DEMO)}>
-            Explore the demo <ArrowRight size={15} />
-          </button>
+
           <p className="privacy-note">Your API password is never stored.</p>
         </section>
       </div>

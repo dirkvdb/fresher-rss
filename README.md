@@ -9,7 +9,7 @@ devenv shell
 just run
 ```
 
-Open **http://localhost:5173** and choose **Explore the demo**, or sign in with your FreshRSS username and **API password**. First enable **Administration → Authentication → Allow API access** and set the API password under **Profile → API management**. Root and subdirectory installations are supported.
+Open **http://localhost:5173** and sign in with your FreshRSS username and **API password**. First enable **Administration → Authentication → Allow API access** and set the API password under **Profile → API management**. Root and subdirectory installations are supported.
 
 ## Docker
 

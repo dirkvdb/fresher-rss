@@ -1274,27 +1274,7 @@ kbd {
   line-height: 1.6;
   margin-bottom: 15px;
 }
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 9px;
-  color: var(--muted);
-  margin: 23px 0 17px;
-}
-.login-divider::before,
-.login-divider::after {
-  content: "";
-  height: 1px;
-  background: var(--border);
-  flex: 1;
-}
-.demo-button {
-  width: 100%;
-  font-size: 11px;
-  gap: 12px;
-  background: transparent;
-}
+
 .login-card > .privacy-note {
   margin: 20px 0 0;
   text-align: center;

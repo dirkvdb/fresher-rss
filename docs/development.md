@@ -5,7 +5,7 @@ devenv shell
 just run
 ```
 
-Open **http://localhost:5173**. Choose **Explore the demo** or connect an instance with an API password. `devenv shell -- just run` is the equivalent one-command form.
+Open **http://localhost:5173**. Connect to your FreshRSS instance with your username and API password. `devenv shell -- just run` is the equivalent one-command form.
 
 `devenv.nix` supplies Node.js 22, npm, Just, Docker/Compose clients, Chromium for browser tests, actionlint, and the GitHub CLI. `just run` installs exact dependencies from `package-lock.json` and starts Vite. The Node image and refresh services are integrated into Vite development and preview, so no separate process is needed for local photos.
 
