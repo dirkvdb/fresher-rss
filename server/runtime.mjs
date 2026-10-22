@@ -51,6 +51,21 @@ export function renderApache(config) {
 ProxyPass /reader/api/refresh ${upstream}/api/refresh connectiontimeout=3 timeout=${Math.ceil(config.public.refreshClientTimeoutMs / 1000)}
 ProxyPass /reader/api/ ${upstream}/api/ connectiontimeout=3 timeout=${Math.ceil(config.public.imageClientTimeoutMs / 1000)}
 ProxyPassReverse /reader/api/ ${upstream}/api/
+# FreshRSS's static-file cache policy must not cache deployment configuration or HTML.
+<LocationMatch "^/reader/config[.]js$">
+    <IfModule mod_expires.c>
+        ExpiresActive Off
+    </IfModule>
+    Header unset Cache-Control
+    Header always set Cache-Control "no-store"
+</LocationMatch>
+<LocationMatch "^/reader/(?:index[.]html)?$">
+    <IfModule mod_expires.c>
+        ExpiresActive Off
+    </IfModule>
+    Header unset Cache-Control
+    Header always set Cache-Control "no-cache"
+</LocationMatch>
 <Location /reader/api/>
     RequestHeader unset Cookie
 </Location>

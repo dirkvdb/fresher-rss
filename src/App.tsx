@@ -1200,7 +1200,7 @@ function Reader({
                 label="Back to overview"
                 onClick={() => setSelectedId(null)}
               >
-                <LayoutGrid size={17} />
+                <ArrowLeft size={17} />
               </IconButton>
             )}
             <button

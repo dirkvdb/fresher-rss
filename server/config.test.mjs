@@ -91,6 +91,31 @@ describe("environment configuration", () => {
       "http://127.0.0.1:4001/api/refresh connectiontimeout=3 timeout=420",
     );
   });
+  it("overrides FreshRSS caching for runtime configuration and reader HTML only", () => {
+    const apache = renderApache(readConfig({}));
+    const policies = [
+      ...apache.matchAll(
+        /<LocationMatch "([^"]+)">([\s\S]*?)<\/LocationMatch>/g,
+      ),
+    ];
+    expect(policies).toHaveLength(2);
+    for (const [path, directive] of [
+      ["/reader/config.js", 'Header always set Cache-Control "no-store"'],
+      ["/reader/", 'Header always set Cache-Control "no-cache"'],
+      ["/reader/index.html", 'Header always set Cache-Control "no-cache"'],
+    ]) {
+      const policy = policies.find(([, pattern]) =>
+        new RegExp(pattern).test(path),
+      );
+      expect(policy?.[2]).toContain("ExpiresActive Off");
+      expect(policy?.[2]).toContain("Header unset Cache-Control");
+      expect(policy?.[2]).toContain(directive);
+    }
+    for (const path of ["/reader/assets/index-hash.js", "/i/", "/config.js"])
+      expect(
+        policies.some(([, pattern]) => new RegExp(pattern).test(path)),
+      ).toBe(false);
+  });
   it("preserves IMAGE_PORT as a legacy alias", () => {
     expect(readConfig({ IMAGE_PORT: "4567" }).serverPort).toBe(4567);
     expect(
