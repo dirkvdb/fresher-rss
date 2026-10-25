@@ -16,6 +16,8 @@ FreshRSS manages subscriptions, feed fetching, and administration. The reader au
 
 Opening an article automatically fetches its main content through the Node service and displays it in the same calm reader style, respecting your theme, font, and text size. A loading indicator is shown while fetching; RSS content appears only if extraction fails or the feed has no usable original URL. The top-right external link always opens the publisher's page in a new tab.
 
+With server-side unread caching configured, readable contents are prefetched alongside thumbnails at startup and synced every five minutes. Opening a cached article returns the sanitized contents immediately, without another publisher fetch. Contents are removed from the unread cache once read for all configured users. Administrators can set `CONTENT_UNREAD_CACHE_ENABLED=false` to disable content prefetching without disabling on-demand extraction or thumbnail caching. [Content cache settings](configuration.md#unread-readable-content-cache).
+
 The server uses Readability to extract article content, removes scripts and unsafe markup, and returns HTML that is sanitized again in the browser. Publisher scripts never run. Fetches use the same public-network restrictions and resource limits as image discovery, without forwarding cookies or FreshRSS credentials. Article images load directly from their publishers.
 
 For Tweakers, the server recognizes DPG's consent redirect and retries the article with the temporary functional `authId` supplied by that page. This cookie is sent only to `https://tweakers.net`, is never persisted or shared between requests, and does not use your browser cookies or accept advertising/tracking consent.
@@ -24,13 +26,15 @@ Extraction requires the Node service and may still fail for other consent walls,
 
 ## Authentication and storage
 
-Use your FreshRSS username and API password, not your regular web-login password. The API password is never stored. Only the API token is retained: session-only by default, or persistently if **Remember me** is selected. Signing out clears it. [API setup](deployment.md#freshrss-api-login).
+Use your FreshRSS username and API password, not your regular web-login password. The browser never stores the API password. Only the API token is retained: session-only by default, or persistently if **Remember me** is selected. Signing out clears it. Administrators can separately configure server-only API passwords for background thumbnail and readable-content caching. [API setup](deployment.md#freshrss-api-login).
 
 ## Article images
 
 Covers come from feed content, lazy-loaded/responsive images, or image attachments. For missing covers, Node reads the original page's Open Graph, Twitter, and structured-data metadata. Only cards near the viewport request it; results are cached.
 
-The browser requests the same-origin `/api/article-image` endpoint because publishers commonly block cross-origin HTML access. Node returns only the image URL; it never executes publisher scripts. The image itself loads directly from the publisher. Natural image proportions are preserved, including uniform hover zoom.
+The browser requests the same-origin `/api/article-image` endpoint because publishers commonly block cross-origin HTML access. Node discovers image URLs without executing publisher scripts. With background caching configured, it also prefetches thumbnail bytes for unread articles at startup and every five minutes, so clients receive cached covers immediately. Images are removed from memory after they become read for all configured users. Cache misses fall back to the publisher. Natural image proportions are preserved, including uniform hover zoom.
+
+Configure `FRESHRSS_API_PASSWORDS` on the server to enable background prefetching; set `IMAGE_UNREAD_CACHE_ENABLED=false` to disable it while keeping on-demand image discovery. [Cache setup and limits](configuration.md#unread-thumbnail-cache).
 
 Default service limits are a 10-second network deadline, 1 MiB compressed/decompressed HTML bound, four concurrent lookups, rate limits, and a bounded cache: 24 hours for covers and 15 minutes for missing images. Requests allow only public HTTP(S) destinations on standard ports, pin validated DNS addresses, revalidate redirects, and reject private/reserved addresses for both articles and images. Cookies and FreshRSS credentials are never forwarded to publishers.
 

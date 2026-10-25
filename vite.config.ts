@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
         name: "fresher-images",
         configureServer(server) {
           const handler = createAppService(options);
+          server.httpServer?.once("close", handler.close);
           server.middlewares.use((request, response, next) => {
             if (request.url?.split("?")[0] === "/config.js") {
               response.setHeader(
@@ -39,6 +40,7 @@ export default defineConfig(({ mode }) => {
         },
         configurePreviewServer(server) {
           const handler = createAppService(options);
+          server.httpServer.once("close", handler.close);
           server.middlewares.use((request, response, next) => {
             if (request.url?.split("?")[0] === "/config.js") {
               response.setHeader(

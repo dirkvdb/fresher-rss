@@ -25,7 +25,7 @@ Run the standalone companion:
 ```sh
 docker run -d --name fresher-rss-standalone --network freshrss_default \
   -p 8081:80 -e FRESHRSS_URL=http://freshrss \
-  -e FRESHRSS_REFRESH_TOKENS='{"dirk":"your-master-authentication-token"}' \
+  -e FRESHRSS_REFRESH_TOKENS='{"reader":"your-master-authentication-token"}' \
   --restart unless-stopped dirkvdb/fresher-rss-standalone:latest
 ```
 
@@ -36,6 +36,8 @@ For Compose, create `.env` using [`.env.example`](.env.example), then run `docke
 ## Configuration and documentation
 
 All deployment settings are configurable through environment variables without rebuilding. Restart/recreate after changes; saved browser appearance preferences override UI defaults.
+
+For in-memory prefetching of unread thumbnails and readable article contents, set `FRESHRSS_API_PASSWORDS='{"reader":"your-api-password"}'` on the Node server alongside `FRESHRSS_URL`. Both caches sync at startup and every five minutes. Disable them independently with `IMAGE_UNREAD_CACHE_ENABLED=false` and `CONTENT_UNREAD_CACHE_ENABLED=false`. See [thumbnail cache setup](docs/configuration.md#unread-thumbnail-cache) and [readable-content cache limits](docs/configuration.md#unread-readable-content-cache).
 
 - **[Environment reference](docs/configuration.md):** connection URLs, ports, UI defaults, feature switches, timeouts, concurrency, caches, rate limits, and complete defaults.
 - **[Deployment](docs/deployment.md):** API and refresh setup, standalone/combined Docker, Compose, static hosting, reverse proxies, and version pinning.

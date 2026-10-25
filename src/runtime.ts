@@ -1,6 +1,7 @@
 export interface RuntimeConfig {
   apiUrl: string;
   imageApiUrl: string;
+  imageUnreadCacheEnabled: boolean;
   contentApiUrl: string;
   refreshApiUrl: string;
   defaultPalette: "forest" | "stone" | "sepia" | "ocean" | "rose" | "lavender";
@@ -32,6 +33,7 @@ export function runtimeConfig(): RuntimeConfig {
   return {
     apiUrl: "",
     imageApiUrl: "api/article-image",
+    imageUnreadCacheEnabled: false,
     contentApiUrl: "api/article-content",
     refreshApiUrl: "api/refresh",
     defaultPalette: "forest",

@@ -17,7 +17,7 @@ The Google Reader API cannot trigger feed polling. Fresher verifies your API ses
 
 ```dotenv
 FRESHRSS_URL=https://rss.example.com
-FRESHRSS_REFRESH_TOKENS='{"dirk":"your-master-authentication-token"}'
+FRESHRSS_REFRESH_TOKENS='{"reader":"your-master-authentication-token"}'
 ```
 
 The JSON keys are FreshRSS usernames; multiple users can share the map. The instance URL must be reachable from Node, include any subdirectory, and have no trailing slash. The combined image defaults to its own `http://127.0.0.1` instance. Restart after changing environment variables.
@@ -32,7 +32,7 @@ Tokens remain on Node, never appear in browser configuration, and are never forw
 docker run -d --name fresher-rss-standalone --network freshrss_default \
   -p 8081:80 \
   -e FRESHRSS_URL=http://freshrss \
-  -e FRESHRSS_REFRESH_TOKENS='{"dirk":"your-master-authentication-token"}' \
+  -e FRESHRSS_REFRESH_TOKENS='{"reader":"your-master-authentication-token"}' \
   -e FRESHER_DEFAULT_PALETTE=ocean \
   -e FRESHER_DEFAULT_MODE=dark \
   --restart unless-stopped dirkvdb/fresher-rss-standalone:latest

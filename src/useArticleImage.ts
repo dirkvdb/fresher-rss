@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Article } from "./api";
 import { safeUrl } from "./content";
-import { fetchArticleImage } from "./articleImages";
+import { fetchArticleImage, thumbnailUrl } from "./articleImages";
 import { runtimeConfig } from "./runtime";
 
 type CachedImage = { image: string | null; expires: number };
@@ -95,5 +95,5 @@ export function useArticleImage(article: Article, feedImage?: string) {
   function onError() {
     if (image) setFailed((previous) => new Set([...previous, image]));
   }
-  return { ref, image, onError };
+  return { ref, image: image ? thumbnailUrl(image) : undefined, onError };
 }

@@ -1,6 +1,15 @@
 import { safeUrl } from "./content";
 import { runtimeConfig } from "./runtime";
 
+/** Cache misses redirect to the original, so read articles and restarts still work. */
+export function thumbnailUrl(image: string): string {
+  if (!runtimeConfig().imageUnreadCacheEnabled) return image;
+  const endpoint = new URL(runtimeConfig().imageApiUrl, document.baseURI);
+  endpoint.searchParams.set("url", image);
+  endpoint.searchParams.set("thumbnail", "1");
+  return endpoint.href;
+}
+
 function resolveImage(value: unknown, base: string): string | undefined {
   if (typeof value !== "string" || !value.trim()) return undefined;
   try {

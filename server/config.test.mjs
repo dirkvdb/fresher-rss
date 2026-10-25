@@ -44,12 +44,13 @@ describe("environment configuration", () => {
     const config = readConfig({
       FRESHRSS_URL: "http://private-freshrss:8080",
       FRESHRSS_REFRESH_TOKENS: '{"reader":"MASTER_SECRET"}',
+      FRESHRSS_API_PASSWORDS: '{"reader":"API_SECRET"}',
       DOCKERHUB_TOKEN: "DOCKER_SECRET",
       FRESHER_API_URL: "/freshrss-api",
     });
     const script = browserConfigScript(config);
     expect(script).not.toMatch(
-      /MASTER_SECRET|DOCKER_SECRET|private-freshrss|refreshTokens/,
+      /MASTER_SECRET|API_SECRET|DOCKER_SECRET|private-freshrss|refreshTokens|apiPasswords/,
     );
     expect(script).toContain('"apiUrl":"/freshrss-api"');
   });
@@ -67,8 +68,37 @@ describe("environment configuration", () => {
       { IMAGE_USER_AGENT: "hello\r\nInjected: value" },
       { FRESHRSS_API_PATH: "../private" },
       { FRESHRSS_REFRESH_TOKENS: '{"reader":false}' },
+      { FRESHRSS_API_PASSWORDS: '{"reader":false}' },
+      { FRESHRSS_API_PASSWORDS: '{"reader":""}' },
+      { IMAGE_UNREAD_CACHE_ENABLED: "invalid" },
+      { IMAGE_UNREAD_SYNC_INTERVAL_MS: "0" },
+      { CONTENT_UNREAD_CACHE_ENABLED: "invalid" },
+      { CONTENT_UNREAD_CACHE_MAX_BYTES: "0" },
+      { CONTENT_UNREAD_CACHE_MAX_ENTRIES: "0" },
     ])
       expect(() => readConfig(env)).toThrow();
+  });
+  it("enables unread caching only when configured, and allows it to be disabled", () => {
+    const env = {
+      FRESHRSS_URL: "https://rss.example",
+      FRESHRSS_API_PASSWORDS: '{"reader":"secret"}',
+    };
+    expect(readConfig(env).public.imageUnreadCacheEnabled).toBe(true);
+    expect(
+      readConfig({ ...env, IMAGE_UNREAD_CACHE_ENABLED: "false" }).public
+        .imageUnreadCacheEnabled,
+    ).toBe(false);
+    expect(
+      readConfig({ ...env, IMAGE_ENABLED: "false" }).public
+        .imageUnreadCacheEnabled,
+    ).toBe(false);
+    expect(readConfig({}).public.imageUnreadCacheEnabled).toBe(false);
+    expect(readConfig({}).imageUnreadSyncIntervalMs).toBe(300000);
+    expect(readConfig({}).contentUnreadCacheEnabled).toBe(true);
+    expect(
+      readConfig({ CONTENT_UNREAD_CACHE_ENABLED: "false" })
+        .contentUnreadCacheEnabled,
+    ).toBe(false);
   });
   it("renders matching web-server upstreams for custom service ports and deadlines", () => {
     const config = readConfig({

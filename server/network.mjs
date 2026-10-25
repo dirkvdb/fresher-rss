@@ -107,6 +107,7 @@ async function readResponse(
   signal,
   config = DEFAULT_CONFIG,
   publisherCookie,
+  binary = false,
 ) {
   const response = await new Promise((resolve, reject) => {
     const request = (target.url.protocol === "https:" ? https : http).request(
@@ -117,7 +118,9 @@ async function readResponse(
         signal,
         headers: {
           "User-Agent": config.imageUserAgent,
-          Accept: "text/html,application/xhtml+xml",
+          Accept: binary
+            ? "image/avif,image/webp,image/*"
+            : "text/html,application/xhtml+xml",
           "Accept-Encoding": "gzip, deflate, br",
           ...(publisherCookie?.origin === target.url.origin
             ? { Cookie: publisherCookie.value }
@@ -143,11 +146,25 @@ async function readResponse(
     response.destroy();
     return { location, status };
   }
+  const contentType = String(response.headers["content-type"] ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  const maxBytes = binary
+    ? config.imageThumbnailMaxBytes
+    : config.imageMaxHtmlBytes;
   if (
     status !== 200 ||
-    !String(response.headers["content-type"] ?? "")
-      .toLowerCase()
-      .includes("html")
+    (binary
+      ? ![
+          "image/jpeg",
+          "image/png",
+          "image/gif",
+          "image/webp",
+          "image/avif",
+          "image/x-icon",
+        ].includes(contentType)
+      : !contentType.includes("html"))
   ) {
     response.destroy();
     return { html: null, status };
@@ -170,7 +187,7 @@ async function readResponse(
   let transferred = 0;
   response.on("data", (chunk) => {
     transferred += chunk.length;
-    if (transferred > config.imageMaxHtmlBytes)
+    if (transferred > maxBytes)
       response.destroy(new ImageError("Publisher response too large."));
   });
   if (decoder) response.on("error", (error) => decoder.destroy(error));
@@ -179,16 +196,50 @@ async function readResponse(
   let size = 0;
   try {
     for await (const chunk of stream) {
-      const bounded = chunk.subarray(0, config.imageMaxHtmlBytes - size);
+      if (binary && size + chunk.length > maxBytes)
+        throw new ImageError("Thumbnail response too large.");
+      const bounded = chunk.subarray(0, maxBytes - size);
       chunks.push(bounded);
       size += bounded.length;
-      if (size >= config.imageMaxHtmlBytes) break;
+      if (size >= maxBytes && !binary) break;
     }
+    if (binary) return { body: Buffer.concat(chunks), contentType, status };
     return { html: Buffer.concat(chunks).toString("utf8"), status };
   } finally {
     decoder?.destroy();
     response.destroy();
   }
+}
+
+/** Downloads raster images with the same DNS pinning and redirect checks as HTML. */
+export async function downloadImage(
+  input,
+  {
+    config = DEFAULT_CONFIG,
+    signal = AbortSignal.timeout(config.imageTimeoutMs),
+    lookup = dnsLookup,
+    requestImage = (target, signal, config) =>
+      readResponse(target, signal, config, undefined, true),
+  } = {},
+) {
+  let url = input;
+  for (let redirects = 0; redirects <= config.imageMaxRedirects; redirects++) {
+    signal.throwIfAborted();
+    const target = await resolvePublicTarget(url, { signal, lookup, config });
+    const response = await requestImage(target, signal, config);
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const next =
+        response.location &&
+        webUrl(response.location, target.url, config.imageAllowedPorts);
+      if (!next) throw new ImageError("Invalid thumbnail redirect.");
+      url = next.href;
+      continue;
+    }
+    if (response.status !== 200 || !response.body?.length)
+      throw new ImageError("Could not retrieve thumbnail.");
+    return response;
+  }
+  throw new ImageError("Too many thumbnail redirects.");
 }
 
 export async function downloadPage(

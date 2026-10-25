@@ -2,7 +2,7 @@
 
 The Docker images generate `config.js` and their web-server configuration at startup. Change environment variables and recreate the container; no image rebuild is needed. For `just run`, put settings in `.env` or export them in the shell. Saved browser appearance preferences override deployment defaults.
 
-Only an explicit public allowlist is written to `config.js`. `FRESHRSS_REFRESH_TOKENS`, the internal upstream address, and unrelated secrets are never included. Boolean values accept `true`/`false` or `1`/`0`. Invalid settings stop startup with the variable name and expected format.
+Only an explicit public allowlist is written to `config.js`. `FRESHRSS_REFRESH_TOKENS`, `FRESHRSS_API_PASSWORDS`, the internal upstream address, and unrelated secrets are never included. Boolean values accept `true`/`false` or `1`/`0`. Invalid settings stop startup with the variable name and expected format.
 
 ## Connection and ports
 
@@ -10,6 +10,7 @@ Only an explicit public allowlist is written to `config.js`. `FRESHRSS_REFRESH_T
 | --------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `FRESHRSS_URL`              | `http://freshrss` in companion; `http://127.0.0.1` in combined image | FreshRSS instance URL reachable from Node/Nginx, including any subdirectory.                              |
 | `FRESHRSS_REFRESH_TOKENS`   | empty                                                                | JSON map of FreshRSS usernames to master authentication tokens. Required for server-side article refresh. |
+| `FRESHRSS_API_PASSWORDS`    | empty                                                                | Server-only JSON map of usernames to API passwords for unread thumbnail and readable-content caching.     |
 | `FRESHRSS_API_PATH`         | `api/greader.php`                                                    | API path relative to the instance URL.                                                                    |
 | `FRESHRSS_REFRESH_PATH`     | `i/`                                                                 | Native refresh route relative to the instance URL.                                                        |
 | `FRESHER_BIND_ADDRESS`      | `0.0.0.0`                                                            | Compose host port binding.                                                                                |
@@ -78,11 +79,40 @@ Public endpoint overrides change what the browser requests. Configure your exter
 
 Private/reserved address rejection, DNS pinning, redirect validation, and credential isolation are always enforced.
 
+### Unread thumbnail cache
+
+With `FRESHRSS_URL` and `FRESHRSS_API_PASSWORDS='{"reader":"your-api-password"}'` configured, Node fetches unread articles at startup and every five minutes, independently of connected browsers. Use the API password from FreshRSS **Profile → API management**, not a web-login password or master refresh token. These credentials stay server-side and are sent only to the configured FreshRSS instance.
+
+Feed images are preferred; missing covers are discovered from publisher pages. Thumbnail bytes are kept only in memory, shared across clients, and removed when no configured user still has the article unread. Failed/incomplete FreshRSS responses retain the previous snapshot until polling succeeds. Cache misses, oversized/unsupported images, read articles, and server restarts fall back to direct publisher images. Slow publishers do not block the next unread-status poll.
+
+| Variable                          | Default    | Purpose                                                                                             |
+| --------------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| `IMAGE_UNREAD_CACHE_ENABLED`      | `true`     | Set `false` to disable thumbnail prefetching; original on-demand image discovery remains available. |
+| `IMAGE_UNREAD_SYNC_INTERVAL_MS`   | `300000`   | Shared unread-status polling interval for thumbnails and readable contents (five minutes).          |
+| `IMAGE_THUMBNAIL_MAX_BYTES`       | `2097152`  | Maximum bytes per cached raster image (2 MiB); SVGs are not cached.                                 |
+| `IMAGE_THUMBNAIL_CACHE_MAX_BYTES` | `67108864` | Total thumbnail-byte memory limit (64 MiB).                                                         |
+
+`IMAGE_CACHE_MAX_ENTRIES` also caps thumbnail entries and the articles prefetched per cycle (512 by default). `IMAGE_MAX_CONCURRENT` bounds prefetch workers; existing network deadlines, allowed ports, DNS pinning, and redirect checks apply. `IMAGE_ENABLED=false` disables this feature too. Without server API credentials, existing on-demand behavior is unchanged.
+
 ## Original article extraction
 
 `/api/article-content` shares the image service's network deadlines, HTML-size and URL bounds, allowed ports, redirect policy, user agent, cache settings, concurrency limit, and rate-limit settings listed above. Its cache, concurrency counter, and per-client rate-limit buckets are separate from image discovery. `FRESHER_IMAGE_CLIENT_TIMEOUT_MS` also bounds browser extraction requests. Extraction remains available when `IMAGE_ENABLED=false`.
 
 The endpoint fetches public pages without publisher credentials, extracts the main article, and returns sanitized HTML as JSON. It never executes publisher scripts or fetches page subresources during extraction. Private/reserved targets are rejected and redirect destinations are revalidated. The browser sanitizes the returned HTML again before displaying it.
+
+### Unread readable-content cache
+
+With the same `FRESHRSS_URL` and `FRESHRSS_API_PASSWORDS` settings used for thumbnail prefetching, Node also fetches and extracts readable contents for unread articles at startup. One shared FreshRSS poll reconciles both caches every five minutes (`IMAGE_UNREAD_SYNC_INTERVAL_MS`), even while publisher requests are still running. Thumbnail and content prefetching are independent: contents can be cached with images disabled, and failed image fetches never prevent article extraction.
+
+Successful extractions, including sanitized HTML, title, byline, and final publisher URL, are shared in memory across clients and served through the existing `/api/article-content` endpoint. They stay cached while unread and within the memory limits, and are removed when no configured user has the article unread. Incomplete or failed FreshRSS polls preserve the affected user's last snapshot. Failed extractions are retried on the next sync; oversized results are not retained. Cache misses continue to use normal on-demand extraction and the existing reader fallback to RSS content. No browser changes or additional credentials are needed.
+
+| Variable                           | Default    | Purpose                                                                                             |
+| ---------------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| `CONTENT_UNREAD_CACHE_ENABLED`     | `true`     | Set `false` to disable background readable-content caching; on-demand extraction remains available. |
+| `CONTENT_UNREAD_CACHE_MAX_ENTRIES` | `512`      | Maximum readable-content entries and articles prefetched per cycle.                                 |
+| `CONTENT_UNREAD_CACHE_MAX_BYTES`   | `67108864` | Total serialized readable-content memory budget (64 MiB), separate from thumbnail bytes.            |
+
+Existing extraction limits, sanitization, credential isolation, and network restrictions apply to prefetching. Background requests and client requests share the extraction concurrency bound and deduplicate in-flight work. The on-demand TTL cache remains separate; background prefetches do not populate it. Disable both `IMAGE_UNREAD_CACHE_ENABLED` and `CONTENT_UNREAD_CACHE_ENABLED` to stop all background unread polling. Without server API credentials, both features remain inactive.
 
 ## Article refresh
 

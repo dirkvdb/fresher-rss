@@ -68,6 +68,7 @@ export function readConfig(env = process.env) {
   const config = {
     upstream,
     refreshTokens: value("FRESHRSS_REFRESH_TOKENS", ""),
+    apiPasswords: value("FRESHRSS_API_PASSWORDS", ""),
     apiPath: relativePath("FRESHRSS_API_PATH", "api/greader.php"),
     refreshPath: relativePath("FRESHRSS_REFRESH_PATH", "i/"),
     serverHost: value("SERVER_HOST", "127.0.0.1"),
@@ -82,6 +83,22 @@ export function readConfig(env = process.env) {
     httpMaxHeaders: integer("HTTP_MAX_HEADERS", 30),
     shutdownTimeoutMs: integer("SHUTDOWN_TIMEOUT_MS", 11000),
     imageEnabled: boolean("IMAGE_ENABLED", true),
+    imageUnreadCacheEnabled: boolean("IMAGE_UNREAD_CACHE_ENABLED", true),
+    imageUnreadSyncIntervalMs: integer("IMAGE_UNREAD_SYNC_INTERVAL_MS", 300000),
+    contentUnreadCacheEnabled: boolean("CONTENT_UNREAD_CACHE_ENABLED", true),
+    contentUnreadCacheMaxEntries: integer(
+      "CONTENT_UNREAD_CACHE_MAX_ENTRIES",
+      512,
+    ),
+    contentUnreadCacheMaxBytes: integer(
+      "CONTENT_UNREAD_CACHE_MAX_BYTES",
+      67108864,
+    ),
+    imageThumbnailMaxBytes: integer("IMAGE_THUMBNAIL_MAX_BYTES", 2097152),
+    imageThumbnailCacheMaxBytes: integer(
+      "IMAGE_THUMBNAIL_CACHE_MAX_BYTES",
+      67108864,
+    ),
     imageTimeoutMs: integer("IMAGE_TIMEOUT_MS", 10000),
     imageDnsTimeoutMs: integer("IMAGE_DNS_TIMEOUT_MS", 5000),
     imageMaxHtmlBytes: integer("IMAGE_MAX_HTML_BYTES", 1048576, 1024),
@@ -145,6 +162,28 @@ export function readConfig(env = process.env) {
       );
     }
   }
+  if (config.apiPasswords) {
+    try {
+      const passwords = JSON.parse(config.apiPasswords);
+      if (
+        !passwords ||
+        typeof passwords !== "object" ||
+        Array.isArray(passwords) ||
+        Object.entries(passwords).some(
+          ([user, password]) =>
+            !/^[a-zA-Z0-9_.-]{1,64}$/.test(user) ||
+            typeof password !== "string" ||
+            !password ||
+            password.length > 1024,
+        )
+      )
+        throw new Error();
+    } catch {
+      throw new Error(
+        "FRESHRSS_API_PASSWORDS must be a JSON object mapping usernames to non-empty API passwords.",
+      );
+    }
+  }
   if (!isIP(config.serverHost))
     throw new Error("SERVER_HOST must be an IP address.");
   if (!isIP(config.dnsResolver))
@@ -169,6 +208,11 @@ export function readConfig(env = process.env) {
     throw new Error("IMAGE_USER_AGENT is invalid.");
   config.public = {
     imageEnabled: config.imageEnabled,
+    imageUnreadCacheEnabled:
+      config.imageEnabled &&
+      config.imageUnreadCacheEnabled &&
+      !!config.upstream &&
+      !!config.apiPasswords,
     refreshEnabled: config.refreshEnabled,
     imageMaxHtmlBytes: config.imageMaxHtmlBytes,
     apiUrl: publicUrl("FRESHER_API_URL", ""),

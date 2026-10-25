@@ -1,11 +1,32 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchArticleImage, imageFromPage } from "./articleImages";
+import {
+  fetchArticleImage,
+  imageFromPage,
+  thumbnailUrl,
+} from "./articleImages";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete window.FRESHER_CONFIG;
+});
 const base = "https://publisher.example/posts/story";
 
 describe("client-side article images", () => {
+  it("routes thumbnails through the cache only when enabled, including subdirectory deployments", () => {
+    const image = "https://cdn.example/photo.jpg";
+    expect(thumbnailUrl(image)).toBe(image);
+    window.FRESHER_CONFIG = {
+      imageUnreadCacheEnabled: true,
+      imageApiUrl: "/reader/api/article-image",
+    };
+    const url = new URL(thumbnailUrl(image));
+    expect(url.pathname).toBe("/reader/api/article-image");
+    expect(url.searchParams.get("thumbnail")).toBe("1");
+    expect(url.searchParams.get("url")).toBe(image);
+    window.FRESHER_CONFIG.imageUnreadCacheEnabled = false;
+    expect(thumbnailUrl(image)).toBe(image);
+  });
   it("reads social metadata and resolves relative image URLs without executing scripts", () => {
     const html =
       '<script>throw Error("executed")</script><meta property="og:image" content="../cover.jpg"><meta name="twitter:image" content="/other.jpg">';

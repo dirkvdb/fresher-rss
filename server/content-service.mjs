@@ -7,6 +7,7 @@ export function createContentService({
   config = readConfig(),
   download = downloadArticlePage,
   now = Date.now,
+  unreadCache,
 } = {}) {
   const cache = new Map();
   const pending = new Map();
@@ -21,7 +22,10 @@ export function createContentService({
     });
     response.end(JSON.stringify(data));
   }
-  async function findContent(url) {
+  async function findContent(
+    url,
+    { signal: callerSignal, cacheResult = true } = {},
+  ) {
     if (pending.has(url)) return pending.get(url);
     if (active >= config.imageMaxConcurrent)
       throw new ImageError(
@@ -30,7 +34,10 @@ export function createContentService({
       );
     active++;
     const work = (async () => {
-      const signal = AbortSignal.timeout(config.imageTimeoutMs);
+      const timeout = AbortSignal.timeout(config.imageTimeoutMs);
+      const signal = callerSignal
+        ? AbortSignal.any([callerSignal, timeout])
+        : timeout;
       let result;
       try {
         const page = await download(url, { signal, config });
@@ -46,9 +53,11 @@ export function createContentService({
           ttl: config.imageMissTtlSeconds,
         };
       }
-      if (cache.size >= config.imageCacheMaxEntries)
-        cache.delete(cache.keys().next().value);
-      cache.set(url, { ...result, expires: now() + result.ttl * 1000 });
+      if (cacheResult) {
+        if (cache.size >= config.imageCacheMaxEntries)
+          cache.delete(cache.keys().next().value);
+        cache.set(url, { ...result, expires: now() + result.ttl * 1000 });
+      }
       return result;
     })();
     pending.set(url, work);
@@ -59,7 +68,15 @@ export function createContentService({
       active--;
     }
   }
-  return async function contentHandler(request, response) {
+  async function lookup(url, options) {
+    const unread = unreadCache?.contentForArticle(url);
+    if (unread) return unread;
+    const cached = cache.get(url);
+    if (cached && cached.expires > now())
+      return { ...cached, ttl: Math.floor((cached.expires - now()) / 1000) };
+    return findContent(url, options);
+  }
+  const handler = async function contentHandler(request, response) {
     let parsed;
     try {
       parsed = new URL(request.url ?? "/", "http://localhost");
@@ -104,18 +121,8 @@ export function createContentService({
       json(response, 429, { error: "Too many article requests." });
       return;
     }
-    const cached = cache.get(url.href);
-    if (cached && cached.expires > now()) {
-      json(
-        response,
-        cached.status,
-        cached.data,
-        Math.floor((cached.expires - now()) / 1000),
-      );
-      return;
-    }
     try {
-      const result = await findContent(url.href);
+      const result = await lookup(url.href);
       json(response, result.status, result.data, result.ttl);
     } catch (error) {
       const timeout = ["TimeoutError", "AbortError"].includes(error?.name);
@@ -133,4 +140,8 @@ export function createContentService({
       );
     }
   };
+  // Background results live only in the unread cache, not the on-demand TTL cache.
+  handler.prefetch = (url, options = {}) =>
+    lookup(url, { ...options, cacheResult: false });
+  return handler;
 }

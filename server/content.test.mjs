@@ -9,6 +9,7 @@ import { createContentService } from "./content-service.mjs";
 import { downloadArticlePage } from "./article-download.mjs";
 import { createAppService } from "./app.mjs";
 import { ImageError } from "./network.mjs";
+import { createUnreadCache } from "./unread-cache.mjs";
 
 const prose =
   "Careful software testing keeps readers safe, preserves useful article content, and avoids surprising network requests. ".repeat(
@@ -25,6 +26,7 @@ async function withServer(handler, work) {
   try {
     await work(`http://127.0.0.1:${server.address().port}/api/article-content`);
   } finally {
+    handler.close?.();
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
   }
@@ -160,6 +162,109 @@ describe("inert main article extraction", () => {
 });
 
 describe("article content HTTP service", () => {
+  it("serves sanitized prefetched unread contents without a publisher fetch, then falls back after eviction", async () => {
+    let now = 0;
+    const settings = readConfig({
+      FRESHRSS_URL: "https://rss.example",
+      FRESHRSS_API_PASSWORDS: '{"reader":"secret"}',
+      IMAGE_UNREAD_CACHE_ENABLED: "false",
+      IMAGE_CACHE_TTL_SECONDS: "1",
+    });
+    let items = [{ alternate: [{ href: "https://publisher.example/story" }] }];
+    const fetchImpl = vi.fn(async (url) =>
+      url.pathname.endsWith("ClientLogin")
+        ? new Response("Auth=reader-token\n")
+        : Response.json({ items }),
+    );
+    const download = vi.fn(async (url) => ({
+      html: page('<script>evil()</script><p onclick="evil()">Safe text</p>'),
+      url,
+    }));
+    const unread = createUnreadCache({
+      config: settings,
+      fetchImpl,
+      lookupContent: (url, options) => content.prefetch(url, options),
+    });
+    const content = createContentService({
+      config: settings,
+      unreadCache: unread,
+      download,
+      now: () => now,
+    });
+    try {
+      await unread.sync();
+      expect(download).toHaveBeenCalledTimes(1);
+      now = 2000;
+      await withServer(content, async (endpoint) => {
+        const response = await fetch(endpoint + query());
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.content).toContain(prose);
+        expect(data.content).not.toMatch(/<script|onclick/);
+        expect(download).toHaveBeenCalledTimes(1);
+        items = [];
+        await unread.sync();
+        expect(
+          unread.contentForArticle("https://publisher.example/story"),
+        ).toBeUndefined();
+        expect((await fetch(endpoint + query())).status).toBe(200);
+        expect(download).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      unread.close();
+    }
+  });
+
+  it("starts readable-content prefetching through the application even when images are disabled", async () => {
+    const settings = readConfig({
+      FRESHRSS_URL: "https://rss.example",
+      FRESHRSS_API_PASSWORDS: '{"reader":"secret"}',
+      IMAGE_ENABLED: "false",
+    });
+    const fetchImpl = vi.fn(async (url) =>
+      url.pathname.endsWith("ClientLogin")
+        ? new Response("Auth=reader-token\n")
+        : Response.json({
+            items: [
+              { alternate: [{ href: "https://publisher.example/story" }] },
+            ],
+          }),
+    );
+    const download = vi.fn(async (url) => ({ html: page(), url }));
+    const handler = createAppService({ config: settings, fetchImpl, download });
+    await withServer(handler, async (endpoint) => {
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      expect((await fetch(endpoint + query())).status).toBe(200);
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("deduplicates foreground requests with in-flight background extraction", async () => {
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const download = vi.fn(async (url) => {
+      await gate;
+      return { html: page(), url };
+    });
+    const content = createContentService({ download });
+    const prefetch = content.prefetch("https://publisher.example/story");
+    await withServer(
+      (request, response) => {
+        const result = content(request, response);
+        release();
+        return result;
+      },
+      async (endpoint) => {
+        const request = fetch(endpoint + query());
+        expect((await prefetch).status).toBe(200);
+        expect((await request).status).toBe(200);
+        expect(download).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
   it("extracts the original Tweakers article after its functional consent redirect", async () => {
     const articleUrl =
       "https://tweakers.net/nieuws/253658/ncsc-krijgt-eerste-signalen-dat-php-lekken-succesvol-zijn-misbruikt.html";

@@ -12,6 +12,7 @@ export function createImageService({
   download = downloadPage,
   resolveTarget = resolvePublicTarget,
   now = Date.now,
+  thumbnailCache,
 } = {}) {
   const cache = new Map();
   const pending = new Map();
@@ -64,7 +65,19 @@ export function createImageService({
       active--;
     }
   }
-  return async function imageHandler(request, response) {
+  async function lookup(url) {
+    const unreadImage = thumbnailCache?.imageForArticle(url);
+    if (unreadImage)
+      return { image: unreadImage, ttl: config.imageCacheTtlSeconds };
+    const cached = cache.get(url);
+    if (cached && cached.expires > now())
+      return {
+        image: cached.image,
+        ttl: Math.floor((cached.expires - now()) / 1000),
+      };
+    return findImage(url);
+  }
+  const handler = async function imageHandler(request, response) {
     if (!config.imageEnabled) {
       json(response, 404, { image: null });
       return;
@@ -98,6 +111,27 @@ export function createImageService({
       json(response, 400, { image: null, error: "Invalid article URL." });
       return;
     }
+    if (parsed.searchParams.get("thumbnail") === "1") {
+      const thumbnail = thumbnailCache?.get(url.href);
+      if (thumbnail) {
+        response.writeHead(200, {
+          "Content-Type": thumbnail.contentType,
+          "Content-Length": thumbnail.body.length,
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'none'; sandbox",
+          "Cache-Control": "private, max-age=300",
+        });
+        response.end(thumbnail.body);
+      } else {
+        // Covers already displayed remain usable after eviction or a server restart.
+        response.writeHead(302, {
+          Location: url.href,
+          "Cache-Control": "no-store",
+        });
+        response.end();
+      }
+      return;
+    }
     const client = request.socket.remoteAddress ?? "unknown";
     const bucket = clients.get(client);
     if (!bucket || bucket.expires <= now()) {
@@ -111,18 +145,8 @@ export function createImageService({
       json(response, 429, { image: null, error: "Too many image requests." });
       return;
     }
-    const cached = cache.get(url.href);
-    if (cached && cached.expires > now()) {
-      json(
-        response,
-        200,
-        { image: cached.image },
-        Math.floor((cached.expires - now()) / 1000),
-      );
-      return;
-    }
     try {
-      const result = await findImage(url.href);
+      const result = await lookup(url.href);
       json(response, 200, { image: result.image }, result.ttl);
     } catch (error) {
       json(response, error instanceof ImageError ? error.status : 502, {
@@ -134,4 +158,6 @@ export function createImageService({
       });
     }
   };
+  handler.lookup = lookup;
+  return handler;
 }

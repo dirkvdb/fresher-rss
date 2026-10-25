@@ -2,6 +2,44 @@ import { parse } from "parse5";
 import { webUrl } from "./network.mjs";
 import { DEFAULT_CONFIG } from "./config.mjs";
 
+/** Match the reader's feed-image preference before falling back to publisher HTML. */
+export function extractFeedImage(article, { config = DEFAULT_CONFIG } = {}) {
+  const base = article.alternate?.[0]?.href ?? article.origin?.htmlUrl;
+  const resolve = (value) =>
+    value && webUrl(value, base, config.imageAllowedPorts)?.href;
+  const nodes = [
+    parse(article.content?.content ?? article.summary?.content ?? ""),
+  ];
+  while (nodes.length) {
+    const node = nodes.shift();
+    nodes.unshift(...(node.childNodes ?? []));
+    if (node.tagName !== "img") continue;
+    const attr = (name) =>
+      node.attrs?.find((item) => item.name === name)?.value;
+    if (["width", "height"].some((key) => parseFloat(attr(key)) < 32)) continue;
+    const srcset = attr("data-srcset") ?? attr("srcset");
+    for (const value of [
+      attr("data-src"),
+      attr("data-lazy-src"),
+      attr("data-original"),
+      ...(srcset
+        ?.split(",")
+        .reverse()
+        .map((source) => source.trim().split(/\s+/)[0]) ?? []),
+      attr("src"),
+    ]) {
+      const image = resolve(value);
+      if (image) return image;
+    }
+  }
+  for (const enclosure of article.enclosure ?? []) {
+    const image =
+      enclosure.type?.startsWith("image/") && resolve(enclosure.href);
+    if (image) return image;
+  }
+  return null;
+}
+
 /** HTML parsing only: no browser, JavaScript execution, subresource loading, or cookies. */
 export function extractImages(html, pageUrl, { config = DEFAULT_CONFIG } = {}) {
   const document = parse(html);
