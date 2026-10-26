@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDown,
   ArrowRight,
@@ -23,6 +24,7 @@ interface OverviewProps {
   stream: string;
   reload: number;
   marking: boolean;
+  actionsContainer: HTMLDivElement | null;
   onMarkRead: (articles: Article[]) => Promise<void>;
   onOpen: (article: Article) => void;
   onShowAll: () => void;
@@ -125,6 +127,7 @@ export function ArticleOverview({
   stream,
   reload,
   marking,
+  actionsContainer,
   onMarkRead,
   onOpen,
   onShowAll,
@@ -268,21 +271,23 @@ export function ArticleOverview({
       aria-label="Article overview"
       aria-busy={busy || marking}
     >
-      <div className="overview-actions">
-        <button
-          className="button"
-          disabled={busy || marking || loadingMore || !items.length}
-          onClick={markVisibleRead}
-          title="Mark the displayed tiles as read and load the next unread batch"
-        >
-          {marking ? (
-            <LoaderCircle size={15} className="spin" />
-          ) : (
-            <CheckCheck size={15} />
-          )}
-          {marking ? "Marking as read…" : "Mark as read"}
-        </button>
-      </div>
+      {actionsContainer &&
+        createPortal(
+          <button
+            className="button"
+            disabled={busy || marking || loadingMore || !items.length}
+            onClick={markVisibleRead}
+            title="Mark the displayed tiles as read and load the next unread batch"
+          >
+            {marking ? (
+              <LoaderCircle size={15} className="spin" />
+            ) : (
+              <CheckCheck size={15} />
+            )}
+            {marking ? "Marking as read…" : "Mark as read"}
+          </button>,
+          actionsContainer,
+        )}
       {markError && (
         <div className="overview-error" role="alert">
           <p>{markError}</p>

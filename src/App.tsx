@@ -378,6 +378,9 @@ function Reader({
   const [preferences, setPreferences] = useState(false);
   const [help, setHelp] = useState(false);
   const [marking, setMarking] = useState(false);
+  const [overviewActions, setOverviewActions] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [fontSize, setFontSize] = useState(
     () =>
       Number(
@@ -1253,6 +1256,9 @@ function Reader({
             </span>
           </div>
           <div className="reader-actions">
+            {!selected && (
+              <div className="overview-actions" ref={setOverviewActions} />
+            )}
             {selected && (
               <>
                 <IconButton
@@ -1432,6 +1438,7 @@ function Reader({
               stream={stream}
               reload={reload}
               marking={marking}
+              actionsContainer={overviewActions}
               onMarkRead={markOverviewRead}
               onOpen={(article) => {
                 setQuery("");

@@ -34,8 +34,6 @@
 }
 .overview-actions {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 24px;
 }
 .overview-section {
   margin-bottom: 33px;

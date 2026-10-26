@@ -84,6 +84,45 @@ test("mobile reader has working navigation and no horizontal overflow", async ({
   await expect(page.locator(".article-card")).toHaveCount(2);
 });
 
+for (const mode of ["desktop", "mobile", "focus"] as const) {
+  test(`overview mark-as-read stays in the toolbar while scrolling in ${mode} mode`, async ({
+    page,
+  }) => {
+    const width = mode === "mobile" ? 320 : 1440;
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto("/");
+    await startDemo(page);
+    if (mode === "mobile")
+      await page.getByRole("button", { name: "Show article overview" }).click();
+    if (mode === "focus") await page.keyboard.press("f");
+
+    const markRead = page.locator(".reader-toolbar").getByRole("button", {
+      name: "Mark as read",
+      exact: true,
+    });
+    await expect(markRead).toBeEnabled();
+    await expect(markRead).toBeInViewport({ ratio: 1 });
+    const initialPosition = await markRead.boundingBox();
+    await page.locator(".reader-scroll").evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect
+      .poll(() =>
+        page.locator(".reader-scroll").evaluate((element) => element.scrollTop),
+      )
+      .toBeGreaterThan(0);
+    await expect(markRead).toBeInViewport({ ratio: 1 });
+    expect(await markRead.boundingBox()).toEqual(initialPosition);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(width);
+
+    await markRead.click();
+    await expect(page.locator(".overview-card")).toHaveCount(0);
+    await expect(markRead).toBeDisabled();
+  });
+}
+
 test("API login, pagination, and mutations use FreshRSS endpoints", async ({
   page,
 }) => {
@@ -417,7 +456,7 @@ test("overview marks only displayed tiles read and loads the next unread batch",
     exact: true,
   });
   const cards = overview.locator(".overview-card");
-  const markRead = overview.getByRole("button", {
+  const markRead = page.locator(".reader-toolbar").getByRole("button", {
     name: "Mark as read",
     exact: true,
   });
@@ -429,7 +468,7 @@ test("overview marks only displayed tiles read and loads the next unread batch",
 
   await markRead.click();
   await expect(
-    overview.getByRole("button", { name: "Marking as read…", exact: true }),
+    page.getByRole("button", { name: "Marking as read…", exact: true }),
   ).toBeDisabled();
   await expect(cards).toHaveCount(2);
   releaseWrite!();
@@ -480,7 +519,8 @@ test("demo overview batch reading respects the selected folder", async ({
     exact: true,
   });
   await expect(overview.locator(".overview-card")).toHaveCount(3);
-  await overview
+  await page
+    .locator(".reader-toolbar")
     .getByRole("button", { name: "Mark as read", exact: true })
     .click();
   await expect(overview.locator(".overview-card")).toHaveCount(0);
