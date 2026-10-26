@@ -8,10 +8,12 @@ type CachedImage = { image: string | null; expires: number };
 const requests = new Map<string, Promise<string | null>>();
 const queue: (() => void)[] = [];
 let active = 0;
+const retryDelays = [10000, 30000, 60000];
 
 function discoverImage(url: string): Promise<string | null> {
   if (requests.has(url)) return requests.get(url)!;
-  const key = `fresher-server-image:${url}`;
+  // Ignore misses cached by older versions that treated publisher errors as misses.
+  const key = `fresher-server-image:v2:${url}`;
   try {
     const cached: CachedImage | null = JSON.parse(
       sessionStorage.getItem(key) ?? "null",
@@ -21,7 +23,7 @@ function discoverImage(url: string): Promise<string | null> {
   } catch {
     /* Storage is optional. */
   }
-  const request = new Promise<string | null>((resolve) => {
+  const request = new Promise<string | null>((resolve, reject) => {
     const run = async () => {
       active++;
       try {
@@ -43,9 +45,9 @@ function discoverImage(url: string): Promise<string | null> {
           /* Storage is optional. */
         }
         resolve(image);
-      } catch {
+      } catch (error) {
         // A transient service error must not become a cached "no image" result.
-        resolve(null);
+        reject(error);
       } finally {
         active--;
         queue.shift()?.();
@@ -55,7 +57,10 @@ function discoverImage(url: string): Promise<string | null> {
     else queue.push(() => void run());
   });
   requests.set(url, request);
-  void request.finally(() => requests.delete(url));
+  void request.then(
+    () => requests.delete(url),
+    () => requests.delete(url),
+  );
   return request;
 }
 
@@ -85,11 +90,23 @@ export function useArticleImage(article: Article, feedImage?: string) {
   useEffect(() => {
     if (!visible || !url || image || discovered !== undefined) return;
     let cancelled = false;
-    discoverImage(url).then((result) => {
-      if (!cancelled) setDiscovered(result);
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    const lookup = () => {
+      discoverImage(url).then(
+        (result) => {
+          if (!cancelled) setDiscovered(result);
+        },
+        () => {
+          if (!cancelled && attempts < retryDelays.length)
+            timer = setTimeout(lookup, retryDelays[attempts++]);
+        },
+      );
+    };
+    lookup();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [visible, url, image, discovered]);
   function onError() {

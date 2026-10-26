@@ -168,6 +168,7 @@ export async function fetchArticleImage(url: string): Promise<string | null> {
   endpoint.searchParams.set("url", url);
   const response = await fetch(endpoint, {
     credentials: "omit",
+    cache: "no-store",
     signal: AbortSignal.timeout(runtimeConfig().imageClientTimeoutMs),
     headers: { Accept: "application/json" },
   });

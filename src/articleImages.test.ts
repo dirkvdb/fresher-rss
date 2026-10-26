@@ -83,6 +83,7 @@ describe("client-side article images", () => {
     expect(url.pathname).toMatch(/\/api\/article-image$/);
     expect(url.searchParams.get("url")).toBe(base);
     expect(fetcher.mock.calls[0][1].credentials).toBe("omit");
+    expect(fetcher.mock.calls[0][1].cache).toBe("no-store");
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it("falls back to direct CORS access for static-only hosting", async () => {

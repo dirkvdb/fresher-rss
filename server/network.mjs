@@ -272,6 +272,13 @@ export async function downloadPage(
       url = next.href;
       continue;
     }
+    // Publisher blocks and outages are not evidence that an article has no image.
+    // Keep these failures out of both the image and readable-content miss caches.
+    if (response.status !== 200 && ![404, 410].includes(response.status))
+      throw new ImageError(
+        `Publisher returned HTTP ${response.status}. Please try again.`,
+        response.status === 429 ? 429 : 502,
+      );
     return { html: response.html, url: target.url.href };
   }
   throw new ImageError("Too many publisher redirects.");

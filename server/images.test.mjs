@@ -150,6 +150,41 @@ describe("publisher metadata", () => {
 });
 
 describe("image HTTP service", () => {
+  it.each([403, 408, 429, 500, 503])(
+    "does not cache a publisher HTTP %s as a missing image",
+    async (status) => {
+      const url = "https://tweakers.net/geek/253768/story.html";
+      const image = "https://tweakers.net/ext/i/2008467020.jpeg";
+      const requestPage = vi
+        .fn()
+        .mockResolvedValueOnce({ status, html: null })
+        .mockResolvedValue({
+          status: 200,
+          html: `<meta property="og:image" content="${image}">`,
+        });
+      const service = createImageService({
+        download: (input, options) =>
+          downloadPage(input, {
+            ...options,
+            lookup: async () => [{ address: "1.1.1.1", family: 4 }],
+            requestPage,
+          }),
+        resolveTarget: vi.fn().mockResolvedValue({}),
+      });
+      await withServer(service, async (endpoint) => {
+        const failed = await fetch(endpoint + article(url));
+        expect(failed.status).toBe(status === 429 ? 429 : 502);
+        expect(failed.headers.get("cache-control")).toBe("no-store");
+        expect((await failed.json()).error).toContain(`HTTP ${status}`);
+        const retry = await fetch(endpoint + article(url));
+        expect(retry.status).toBe(200);
+        expect(await retry.json()).toEqual({ image });
+        await fetch(endpoint + article(url));
+        expect(requestPage).toHaveBeenCalledTimes(2);
+      });
+    },
+  );
+
   it("discovers, caches, and serves Tweakers covers after the functional consent redirect", async () => {
     const url =
       "https://tweakers.net/nieuws/253774/apple-erkent-probleem-met-scherm-iphone-duo-en-vervangt-getroffen-exemplaren.html";
