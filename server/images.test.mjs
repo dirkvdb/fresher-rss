@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   downloadPage,
   publicAddress,
@@ -8,6 +8,12 @@ import {
 } from "./network.mjs";
 import { extractImages } from "./extract.mjs";
 import { createImageService } from "./service.mjs";
+import { downloadArticlePage } from "./article-download.mjs";
+import { readConfig } from "./config.mjs";
+import { createUnreadCache } from "./unread-cache.mjs";
+
+vi.mock("./article-download.mjs", { spy: true });
+afterEach(() => vi.mocked(downloadArticlePage).mockReset());
 
 async function withServer(handler, work) {
   const server = createServer(handler);
@@ -144,6 +150,85 @@ describe("publisher metadata", () => {
 });
 
 describe("image HTTP service", () => {
+  it("discovers, caches, and serves Tweakers covers after the functional consent redirect", async () => {
+    const url =
+      "https://tweakers.net/nieuws/253774/apple-erkent-probleem-met-scherm-iphone-duo-en-vervangt-getroffen-exemplaren.html";
+    const image = "https://tweakers.net/ext/i/2008471590.jpeg";
+    const authId = "12345678-1234-4abc-8def-123456789abc";
+    const callback = `https://tweakers.net/privacy-gate/store/?authId=${authId}`;
+    const rawDownload = vi
+      .fn()
+      .mockResolvedValueOnce({
+        url: "https://myprivacy.dpgmedia.nl/consent?siteKey=tweakers",
+        html: `<script>const callbackUrl = new URL(decodeURIComponent('${encodeURIComponent(callback)}'));</script>`,
+      })
+      .mockResolvedValueOnce({
+        url,
+        html: `<meta property="og:image" content="${image}">`,
+      });
+    const actual = await vi.importActual("./article-download.mjs");
+    vi.mocked(downloadArticlePage).mockImplementationOnce((input, options) =>
+      actual.downloadArticlePage(input, { ...options, download: rawDownload }),
+    );
+    const config = readConfig({
+      FRESHRSS_URL: "https://rss.example",
+      FRESHRSS_API_PASSWORDS: '{"reader":"secret"}',
+      CONTENT_UNREAD_CACHE_ENABLED: "false",
+    });
+    const downloadThumbnail = vi.fn().mockResolvedValue({
+      body: Buffer.from("Tweakers cover"),
+      contentType: "image/jpeg",
+    });
+    const cache = createUnreadCache({
+      config,
+      lookupImage: (input) => service.lookup(input),
+      fetchImpl: async (input) =>
+        input.pathname.endsWith("ClientLogin")
+          ? new Response("Auth=reader-token\n")
+          : Response.json({ items: [{ alternate: [{ href: url }] }] }),
+      downloadThumbnail,
+    });
+    const service = createImageService({
+      config,
+      thumbnailCache: cache,
+      resolveTarget: vi.fn().mockResolvedValue({}),
+    });
+    try {
+      await withServer(service, async (endpoint) => {
+        const response = await fetch(endpoint + article(url), {
+          headers: { Cookie: "browser=secret", Authorization: "secret" },
+        });
+        expect(await response.json()).toEqual({ image });
+        expect(rawDownload).toHaveBeenCalledTimes(2);
+        expect(rawDownload.mock.calls[0][1]).not.toHaveProperty(
+          "publisherCookie",
+        );
+        expect(rawDownload.mock.calls[1][1].publisherCookie).toEqual({
+          origin: "https://tweakers.net",
+          value: `authId=${authId}`,
+        });
+        expect(rawDownload.mock.calls[1][1].signal).toBe(
+          rawDownload.mock.calls[0][1].signal,
+        );
+        await cache.sync();
+        expect(cache.imageForArticle(url)).toBe(image);
+        expect(downloadThumbnail).toHaveBeenCalledExactlyOnceWith(
+          image,
+          expect.objectContaining({ config, signal: expect.any(AbortSignal) }),
+        );
+        const thumbnail = await fetch(
+          endpoint + article(image) + "&thumbnail=1",
+        );
+        expect(thumbnail.status).toBe(200);
+        expect(thumbnail.headers.get("content-type")).toBe("image/jpeg");
+        expect(await thumbnail.text()).toBe("Tweakers cover");
+        expect(downloadArticlePage).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      cache.close();
+    }
+  });
+
   it("rejects internal destinations and cross-site requests", async () => {
     await withServer(createImageService(), async (endpoint) => {
       for (const url of [

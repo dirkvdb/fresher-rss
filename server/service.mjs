@@ -1,15 +1,11 @@
-import {
-  downloadPage,
-  ImageError,
-  resolvePublicTarget,
-  webUrl,
-} from "./network.mjs";
+import { ImageError, resolvePublicTarget, webUrl } from "./network.mjs";
+import { downloadArticlePage } from "./article-download.mjs";
 import { extractImages } from "./extract.mjs";
 import { readConfig } from "./config.mjs";
 
 export function createImageService({
   config = readConfig(),
-  download = downloadPage,
+  download = downloadArticlePage,
   resolveTarget = resolvePublicTarget,
   now = Date.now,
   thumbnailCache,
