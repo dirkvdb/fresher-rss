@@ -371,7 +371,9 @@ function Reader({
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [sidebar, setSidebar] = useState(false);
-  const [sidebarHidden, setSidebarHidden] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(
+    () => stored("fresher-sidebar-hidden") === "true",
+  );
   const [mobileArticle, setMobileArticle] = useState(false);
   const [focus, setFocus] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -441,6 +443,10 @@ function Reader({
   );
   const failRef = useRef(fail);
   failRef.current = fail;
+
+  useEffect(() => {
+    save("fresher-sidebar-hidden", String(sidebarHidden));
+  }, [sidebarHidden]);
 
   useEffect(() => {
     if (isDemo) {

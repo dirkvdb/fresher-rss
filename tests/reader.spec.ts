@@ -53,6 +53,27 @@ test("demo supports reading, stars, appearance, themes, search, and focus", asyn
   expect(errors).toEqual([]);
 });
 
+for (const restoreButton of ["Show sidebar", "Show navigation"]) {
+  test(`sidebar visibility persists across reloads using ${restoreButton}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await page.goto("/");
+    await startDemo(page);
+    const sidebar = page.getByRole("complementary", { name: "Feed navigation" });
+    await expect(sidebar).toBeVisible();
+
+    await page.getByRole("button", { name: "Hide sidebar", exact: true }).click();
+    await expect(sidebar).toBeHidden();
+    await page.reload();
+    await expect(sidebar).toBeHidden();
+    await page.getByRole("button", { name: restoreButton, exact: true }).click();
+    await expect(sidebar).toBeVisible();
+    await page.reload();
+    await expect(sidebar).toBeVisible();
+  });
+}
+
 test("mobile reader has working navigation and no horizontal overflow", async ({
   page,
 }) => {
