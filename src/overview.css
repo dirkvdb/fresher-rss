@@ -34,6 +34,7 @@
 }
 .overview-actions {
   display: flex;
+  margin-inline-end: 8px;
 }
 .overview-section {
   margin-bottom: 33px;

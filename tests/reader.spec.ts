@@ -124,6 +124,14 @@ for (const mode of ["desktop", "mobile", "focus"] as const) {
     await expect(markRead).toBeEnabled();
     await expect(markRead).toBeInViewport({ ratio: 1 });
     const initialPosition = await markRead.boundingBox();
+    const appearancePosition = await page
+      .getByRole("button", { name: "Reading appearance", exact: true })
+      .boundingBox();
+    expect(initialPosition).not.toBeNull();
+    expect(appearancePosition).not.toBeNull();
+    expect(
+      appearancePosition!.x - (initialPosition!.x + initialPosition!.width),
+    ).toBeGreaterThanOrEqual(8);
     await page.locator(".reader-scroll").evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
