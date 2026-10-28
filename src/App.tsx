@@ -56,6 +56,7 @@ import { FeedIcon } from "./FeedIcon";
 import { ThemePicker } from "./ThemePicker";
 import { useTheme } from "./themes";
 import { runtimeConfig } from "./runtime";
+import { useArticleHistory } from "./useArticleHistory";
 
 function stored(key: string, fallback = "") {
   try {
@@ -398,6 +399,11 @@ function Reader({
   const listRequest = useRef(0);
   const articleScroll = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
+  useArticleHistory(selectedId, (id) => {
+    setSelectedId(id);
+    // Browser Back returns to the overview, including on narrow screens.
+    setMobileArticle(true);
+  });
   const selected = articles.find((a) => a.id === selectedId);
   const selectedFeed = feeds.find((f) => f.id === selected?.origin.streamId);
   const visible = useMemo(
@@ -525,6 +531,7 @@ function Reader({
     setUnread(onlyUnread);
     setQuery("");
     setSidebar(false);
+    setSelectedId(null);
     setMobileArticle(false);
   }
   async function refreshArticles(target = stream) {
@@ -673,27 +680,6 @@ function Reader({
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
   });
-  async function markAll() {
-    if (marking) return;
-    setMarking(true);
-    try {
-      if (isDemo) {
-        const updated = demoArticles.map((a) =>
-          stream === ALL ||
-          a.origin.streamId === stream ||
-          a.categories.includes(stream)
-            ? { ...a, categories: [...new Set([...a.categories, READ])] }
-            : a,
-        );
-        setDemoArticles(updated);
-      } else await api.markAllRead(stream, Date.now());
-      setReload((v) => v + 1);
-    } catch (e) {
-      failRef.current(e);
-    } finally {
-      setMarking(false);
-    }
-  }
   async function markOverviewRead(batch: Article[]) {
     if (marking) return;
     const ids = new Set(
@@ -1011,18 +997,6 @@ function Reader({
                   ? "Gathering your reading…"
                   : `${counts[stream] ?? (stream === ALL ? totalUnread : articles.filter((a) => !a.categories.includes(READ)).length)} unread articles`}
             </span>
-            <button
-              className="text-button"
-              disabled={loading || marking || !articles.length}
-              onClick={markAll}
-            >
-              {marking ? (
-                <LoaderCircle size={14} className="spin" />
-              ) : (
-                <CheckCheck size={14} />
-              )}{" "}
-              {marking ? "Marking read…" : "Mark all read"}
-            </button>
           </div>
           <div className="search-box">
             <Search size={15} />
@@ -1215,7 +1189,10 @@ function Reader({
             <button
               className="icon-button mobile-back"
               aria-label="Back to articles"
-              onClick={() => setMobileArticle(false)}
+              onClick={() => {
+                setSelectedId(null);
+                setMobileArticle(false);
+              }}
             >
               <ArrowLeft size={18} />
             </button>

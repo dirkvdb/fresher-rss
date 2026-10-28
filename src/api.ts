@@ -213,11 +213,4 @@ export class FreshRSS {
     ids.forEach((id) => body.append("i", id));
     await this.write("edit-tag", body);
   }
-  async markAllRead(stream: string, before: number) {
-    // FreshRSS compares this value to microsecond-based entry IDs. `before` is milliseconds.
-    await this.write(
-      "mark-all-as-read",
-      new URLSearchParams({ s: stream, ts: `${before}000` }),
-    );
-  }
 }

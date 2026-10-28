@@ -106,6 +106,79 @@ test("mobile reader has working navigation and no horizontal overflow", async ({
 });
 
 for (const mode of ["desktop", "mobile", "focus"] as const) {
+  test(`browser Back returns from an article to the tiles in ${mode} mode`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: mode === "mobile" ? 390 : 1440,
+      height: 960,
+    });
+    await page.goto("/?previous-page");
+    await page.goto("/");
+    await startDemo(page);
+    if (mode === "mobile")
+      await page.getByRole("button", { name: "Show article overview" }).click();
+    const initialHistoryLength = await page.evaluate(() => history.length);
+    await page.locator(".overview-card").first().click();
+    await expect(page.locator(".article-content")).toBeVisible();
+    const firstTitle = await page.locator(".article-content h1").textContent();
+    await page.keyboard.press("j");
+    await expect(page.locator(".article-content h1")).not.toHaveText(
+      firstTitle!,
+    );
+    const latestTitle = await page.locator(".article-content h1").textContent();
+    expect(await page.evaluate(() => history.length)).toBe(
+      initialHistoryLength + 1,
+    );
+    if (mode === "focus") await page.keyboard.press("f");
+
+    await page.goBack();
+    await expect(
+      page.getByRole("region", { name: "Article overview", exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(".article-content")).toHaveCount(0);
+    await expect(page).toHaveURL("/");
+
+    await page.goForward();
+    await expect(page.locator(".article-content h1")).toHaveText(latestTitle!);
+    await page.goBack();
+    await expect(page.locator(".overview-card").first()).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL("/?previous-page");
+  });
+}
+
+for (const navigation of [
+  "Back to overview",
+  "Show article overview",
+  "Starred",
+  "Back to articles",
+]) {
+  test(`${navigation} clears the article's browser history step`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: navigation === "Back to articles" ? 390 : 1440,
+      height: 960,
+    });
+    await page.goto("/?previous-page");
+    await page.goto("/");
+    await startDemo(page);
+    if (navigation === "Back to articles")
+      await page.getByRole("button", { name: "Show article overview" }).click();
+    await page.locator(".overview-card").first().click();
+    await expect(page.locator(".article-content")).toBeVisible();
+    await page.getByRole("button", { name: navigation, exact: true }).click();
+    await expect(page.locator(".article-content")).toHaveCount(0);
+    await expect
+      .poll(() => page.evaluate(() => history.state?.fresherArticle ?? null))
+      .toBeNull();
+    await page.goBack();
+    await expect(page).toHaveURL("/?previous-page");
+  });
+}
+
+for (const mode of ["desktop", "mobile", "focus"] as const) {
   test(`overview mark-as-read stays in the toolbar while scrolling in ${mode} mode`, async ({
     page,
   }) => {
@@ -692,13 +765,20 @@ test("Refresh fetches new articles on FreshRSS before reloading the reader", asy
   ).toBeEnabled();
 });
 
-test("overview refreshes unread cards and keeps recent stories after marking all read", async ({
+test("overview marks only displayed tiles read without a mark-all action", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/");
   await startDemo(page);
+  const overview = page.getByRole("region", {
+    name: "Article overview",
+    exact: true,
+  });
   await expect(page.locator(".overview-card")).toHaveCount(9);
+  await expect(
+    page.getByRole("button", { name: "Mark all read", exact: true }),
+  ).toHaveCount(0);
   await page.locator(".overview-card").first().click();
   await page
     .getByRole("button", { name: "Back to overview", exact: true })
@@ -711,14 +791,14 @@ test("overview refreshes unread cards and keeps recent stories after marking all
     }),
   ).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Mark all read", exact: true })
+    .getByRole("button", { name: "Mark as read", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "No unread articles", exact: true }),
+    overview.getByRole("heading", { name: "No unread articles", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Show all articles", exact: true })
+  await overview
+    .getByRole("button", { name: "Browse all articles", exact: true })
     .click();
   await expect(
     page.getByText("No unread articles. Showing recent articles.", {

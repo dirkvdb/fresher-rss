@@ -5,6 +5,7 @@
 - The shadcn-inspired three-pane reader includes feeds, collapsible folders, an article list, and a typography-focused reading pane. Mobile uses dedicated navigation and article views.
 - The overview groups the latest unread article cards by folder. Click a card to open it; the grid button returns to the overview. When caught up, recent articles appear instead.
 - All, unread, and starred views display unread counts. Opening an article marks it read by default; read/unread and star changes sync to FreshRSS.
+- The overview’s **Mark as read** action marks only the displayed tiles, leaving articles not yet displayed unread. There is no server-wide mark-all-read action.
 - Articles load in pages with newest/oldest sorting. Search covers title, author, and body **within loaded articles**.
 - Focus mode hides surrounding panes. Serif/sans fonts and reading text size are adjustable.
 - Forest, Stone, Sepia, Ocean, Rose, and Lavender each support light, dark, and system modes, with live previews and saved preferences.

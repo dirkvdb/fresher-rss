@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  ALL,
   ApiError,
   FreshRSS,
   READ,
@@ -95,14 +94,21 @@ describe("FreshRSS API contract", () => {
     ]);
   });
 
-  it("bounds mark-all-as-read to microseconds without floating-point rounding", async () => {
+  it("marks only explicitly supplied article IDs as read", async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(new Response("write-token"))
       .mockResolvedValueOnce(new Response("OK"));
     vi.stubGlobal("fetch", fetcher);
-    await new FreshRSS(session).markAllRead(ALL, 1750000000123);
-    expect(fetcher.mock.calls[1][1].body.get("ts")).toBe("1750000000123000");
+    await new FreshRSS(session).tag(["displayed-1", "displayed-2"], READ, true);
+    expect(fetcher.mock.calls[1][0]).toBe(
+      `${session.apiUrl}/reader/api/0/edit-tag?output=json`,
+    );
+    const body = fetcher.mock.calls[1][1].body as URLSearchParams;
+    expect(body.get("a")).toBe(READ);
+    expect(body.getAll("i")).toEqual(["displayed-1", "displayed-2"]);
+    expect(body.has("s")).toBe(false);
+    expect(body.has("ts")).toBe(false);
   });
 
   it("distinguishes disabled API access from an expired session", async () => {
